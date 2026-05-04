@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color _seed = Color(0xFF5C4B8A);
@@ -18,37 +19,41 @@ class AppTheme {
       secondary: accent,
     );
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
+    final base = ThemeData(useMaterial3: true, colorScheme: scheme);
+    final interTextTheme = GoogleFonts.interTextTheme(base.textTheme).apply(
+      bodyColor: textPrimary,
+      displayColor: textPrimary,
+    );
+
+    return base.copyWith(
       scaffoldBackgroundColor: background,
-      textTheme: const TextTheme(
-        headlineMedium: TextStyle(
+      textTheme: interTextTheme.copyWith(
+        headlineMedium: interTextTheme.headlineMedium!.copyWith(
           fontSize: 24,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           height: 1.2,
         ),
-        titleLarge: TextStyle(
+        titleLarge: interTextTheme.titleLarge!.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        titleMedium: TextStyle(
+        titleMedium: interTextTheme.titleMedium!.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: interTextTheme.bodyMedium!.copyWith(
           fontSize: 14,
           color: textPrimary,
           height: 1.4,
         ),
-        bodySmall: TextStyle(
+        bodySmall: interTextTheme.bodySmall!.copyWith(
           fontSize: 12,
           color: textSecondary,
         ),
-        labelLarge: TextStyle(
+        labelLarge: interTextTheme.labelLarge!.copyWith(
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),

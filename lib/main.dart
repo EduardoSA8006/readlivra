@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import 'app/main_shell.dart';
 import 'core/theme/app_theme.dart';
-import 'features/home/screens/home_screen.dart';
 
 void main() {
-  runApp(const ReadlivraApp());
+  // Fonts are bundled under assets/google_fonts/ — refuse runtime HTTP
+  // fetching so the app behaves identically online and offline.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  runApp(const ProviderScope(child: ReadlivraApp()));
 }
 
 class ReadlivraApp extends StatelessWidget {
@@ -16,7 +21,7 @@ class ReadlivraApp extends StatelessWidget {
       title: 'Readlivra',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const HomeScreen(),
+      home: const MainShell(),
     );
   }
 }
