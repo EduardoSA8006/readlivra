@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_palette.dart';
 import '../../library/data/models/book_entry.dart';
 import '../../library/providers.dart';
 import '../../library/screens/book_detail_screen.dart';
@@ -17,12 +17,10 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.only(top: 12, bottom: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            _Header(),
-            SizedBox(height: 24),
             _ContinueReadingSection(),
             SizedBox(height: 28),
             _QuickActions(),
@@ -30,31 +28,6 @@ class HomeScreen extends ConsumerWidget {
             _RecentSection(),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Boa noite',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Pronto para continuar a leitura?',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
       ),
     );
   }
@@ -89,28 +62,29 @@ class _ContinueEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       child: Row(
         children: [
-          const Icon(Icons.menu_book_rounded,
-              size: 32, color: AppTheme.textSecondary),
+          Icon(Icons.menu_book_rounded,
+              size: 32, color: scheme.onSurfaceVariant),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Nenhum livro aberto ainda',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: scheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -133,12 +107,13 @@ class _ContinuePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       child: Text(
         message,
@@ -166,7 +141,7 @@ class _ContinueReadingCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF2E2148), Color(0xFF5C4B8A)],
+            colors: AppPalette.heroGradient,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -194,6 +169,7 @@ class _ContinueReadingCard extends StatelessWidget {
                     book.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 17,
@@ -204,6 +180,9 @@ class _ContinueReadingCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     book.author ?? 'Autor desconhecido',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: const TextStyle(
                         color: Colors.white70, fontSize: 13),
                   ),
@@ -214,8 +193,8 @@ class _ContinueReadingCard extends StatelessWidget {
                       value: info.progress,
                       minHeight: 6,
                       backgroundColor: Colors.white24,
-                      valueColor:
-                          const AlwaysStoppedAnimation(AppTheme.accent),
+                      valueColor: const AlwaysStoppedAnimation(
+                          AppPalette.secondary),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -303,8 +282,9 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: AppTheme.surface,
+      color: scheme.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -313,18 +293,18 @@ class _QuickAction extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEDE7DD)),
+            border: Border.all(color: scheme.outline),
           ),
           child: Column(
             children: [
-              Icon(icon, color: AppTheme.textPrimary, size: 22),
+              Icon(icon, color: scheme.onSurface, size: 22),
               const SizedBox(height: 6),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                  color: scheme.onSurface,
                 ),
               ),
             ],
@@ -469,22 +449,26 @@ class _FallbackCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.all(10),
-      decoration: decoration,
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Text(
-          title,
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-            height: 1.2,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: width,
+        height: height,
+        padding: const EdgeInsets.all(10),
+        decoration: decoration,
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: Text(
+            title,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              height: 1.2,
+            ),
           ),
         ),
       ),

@@ -22,6 +22,7 @@ class ReadingPreferencesViewModel
   }
 
   Future<void> patch({
+    ReadingTheme? theme,
     ReadingFont? font,
     double? fontSize,
     double? lineHeight,
@@ -30,6 +31,7 @@ class ReadingPreferencesViewModel
   }) async {
     final current = state.value ?? ReadingPreferences.defaults;
     final next = current.copyWith(
+      theme: theme,
       font: font,
       fontSize: fontSize,
       lineHeight: lineHeight,

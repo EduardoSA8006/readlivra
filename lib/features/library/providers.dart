@@ -67,6 +67,20 @@ final highlightsProvider =
 final annotationsViewModelProvider =
     NotifierProvider<AnnotationsViewModel, void>(AnnotationsViewModel.new);
 
+/// Reading progress for a specific book — used by library cards to render
+/// a progress bar without firing one query per visible item (Riverpod
+/// caches the family entries automatically).
+final bookProgressProvider =
+    FutureProvider.family<BookProgress, String>((ref, bookId) async {
+  // Re-read whenever the reader writes new progress; the reader's
+  // notifier doesn't expose a direct invalidation signal, so we tie it to
+  // the library viewmodel which is touched on opens too.
+  ref.watch(libraryViewModelProvider);
+  final repo = await ref.watch(progressRepositoryProvider.future);
+  final result = await repo.getProgress(bookId);
+  return result.valueOrNull ?? BookProgress.empty;
+});
+
 class ContinueReadingInfo {
   const ContinueReadingInfo({
     required this.book,

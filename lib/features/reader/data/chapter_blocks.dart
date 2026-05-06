@@ -24,6 +24,10 @@ List<String> splitChapterIntoBlocks(String html) {
   final blocks = <String>[];
   for (final node in body.nodes) {
     if (node is dom.Element) {
+      final hasText = (node.text).trim().isNotEmpty;
+      final hasMedia =
+          node.querySelector('img') != null || node.localName == 'img';
+      if (!hasText && !hasMedia) continue;
       blocks.add(node.outerHtml);
     } else if (node is dom.Text) {
       final text = node.text.trim();

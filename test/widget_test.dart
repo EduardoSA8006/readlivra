@@ -31,10 +31,13 @@ void main() {
     await tester.pumpWidget(await _harness());
     await tester.pump();
 
-    expect(find.text('Início'), findsOneWidget);
-    expect(find.text('Biblioteca'), findsOneWidget);
-    expect(find.text('Estatísticas'), findsOneWidget);
-    expect(find.text('Ajustes'), findsOneWidget);
+    // Each label is rendered twice: in the AppBar title and in the bottom nav.
+    // Home tab shows the time-based greeting in the AppBar instead of "Início",
+    // so the label appears only in the bottom nav.
+    expect(find.text('Início'), findsAtLeastNWidgets(1));
+    expect(find.text('Biblioteca'), findsAtLeastNWidgets(1));
+    expect(find.text('Estatísticas'), findsAtLeastNWidgets(1));
+    expect(find.text('Perfil'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('Library tab shows empty state when no books', (tester) async {
@@ -45,6 +48,6 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Sua biblioteca está vazia.'), findsOneWidget);
+    expect(find.text('Sua biblioteca está vazia'), findsOneWidget);
   });
 }

@@ -1,62 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AppTheme {
-  static const Color _seed = Color(0xFF5C4B8A);
-  static const Color background = Color(0xFFFAF6F0);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF1F1B2E);
-  static const Color textSecondary = Color(0xFF6B6478);
-  static const Color accent = Color(0xFFE0723A);
+import 'app_palette.dart';
 
-  static ThemeData light() {
+class AppTheme {
+  AppTheme._();
+
+  static ThemeData light() => _build(Brightness.light);
+  static ThemeData dark() => _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) {
+    final isLight = brightness == Brightness.light;
+
     final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: Brightness.light,
+      seedColor: AppPalette.primary,
+      brightness: brightness,
     ).copyWith(
-      surface: surface,
-      onSurface: textPrimary,
-      secondary: accent,
+      primary: isLight ? AppPalette.primary : AppPalette.primaryDark,
+      onPrimary: Colors.white,
+      secondary: AppPalette.secondary,
+      onSecondary: Colors.white,
+      tertiary: AppPalette.tertiary,
+      onTertiary: Colors.white,
+      surface: isLight ? AppPalette.lightSurface : AppPalette.darkSurface,
+      surfaceContainer: isLight
+          ? AppPalette.lightSurfaceContainer
+          : AppPalette.darkSurfaceContainer,
+      surfaceContainerHigh: isLight
+          ? AppPalette.lightSurfaceContainerHigh
+          : AppPalette.darkSurfaceContainerHigh,
+      onSurface:
+          isLight ? AppPalette.lightOnSurface : AppPalette.darkOnSurface,
+      onSurfaceVariant: isLight
+          ? AppPalette.lightOnSurfaceVariant
+          : AppPalette.darkOnSurfaceVariant,
+      outline: isLight ? AppPalette.lightOutline : AppPalette.darkOutline,
+      error: AppPalette.danger,
     );
 
-    final base = ThemeData(useMaterial3: true, colorScheme: scheme);
-    final interTextTheme = GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: textPrimary,
-      displayColor: textPrimary,
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      brightness: brightness,
+    );
+    final inter = GoogleFonts.interTextTheme(base.textTheme).apply(
+      bodyColor: scheme.onSurface,
+      displayColor: scheme.onSurface,
     );
 
     return base.copyWith(
-      scaffoldBackgroundColor: background,
-      textTheme: interTextTheme.copyWith(
-        headlineMedium: interTextTheme.headlineMedium!.copyWith(
+      scaffoldBackgroundColor:
+          isLight ? AppPalette.lightBackground : AppPalette.darkBackground,
+      textTheme: inter.copyWith(
+        headlineMedium: inter.headlineMedium!.copyWith(
           fontSize: 24,
           fontWeight: FontWeight.w700,
-          color: textPrimary,
+          color: scheme.onSurface,
           height: 1.2,
         ),
-        titleLarge: interTextTheme.titleLarge!.copyWith(
+        titleLarge: inter.titleLarge!.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: textPrimary,
+          color: scheme.onSurface,
         ),
-        titleMedium: interTextTheme.titleMedium!.copyWith(
+        titleMedium: inter.titleMedium!.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: scheme.onSurface,
         ),
-        bodyMedium: interTextTheme.bodyMedium!.copyWith(
+        bodyMedium: inter.bodyMedium!.copyWith(
           fontSize: 14,
-          color: textPrimary,
+          color: scheme.onSurface,
           height: 1.4,
         ),
-        bodySmall: interTextTheme.bodySmall!.copyWith(
+        bodySmall: inter.bodySmall!.copyWith(
           fontSize: 12,
-          color: textSecondary,
+          color: scheme.onSurfaceVariant,
         ),
-        labelLarge: interTextTheme.labelLarge!.copyWith(
+        labelLarge: inter.labelLarge!.copyWith(
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
+      ),
+      iconTheme: IconThemeData(color: scheme.onSurface),
+      dividerTheme: DividerThemeData(color: scheme.outline, thickness: 1),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
       ),
     );
   }

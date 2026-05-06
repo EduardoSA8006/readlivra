@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/storage_providers.dart';
+import '../../core/theme/reader_palette.dart';
 import 'data/models/reading_preferences.dart';
 import 'data/reader_repository.dart';
 import 'data/reader_repository_impl.dart';
@@ -26,6 +27,14 @@ final readingPreferencesProvider =
     AsyncNotifierProvider<ReadingPreferencesViewModel, ReadingPreferences>(
   ReadingPreferencesViewModel.new,
 );
+
+/// Convenience: the [ReaderPalette] currently active for the reader,
+/// derived from the user's stored theme preference.
+final readerPaletteProvider = Provider<ReaderPalette>((ref) {
+  final prefs =
+      ref.watch(readingPreferencesProvider).value ?? ReadingPreferences.defaults;
+  return ReaderPalette.of(prefs.theme);
+});
 
 typedef ReadingPosition = ({
   int chapterIndex,

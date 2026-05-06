@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../library/data/models/bookmark.dart';
 import '../../library/data/models/highlight.dart';
 import '../../library/providers.dart';
@@ -9,9 +8,11 @@ import '../providers.dart';
 import '../viewmodels/reader_state.dart';
 
 Future<void> showAnnotationsListSheet(BuildContext context, String bookId) {
+  final palette =
+      ProviderScope.containerOf(context).read(readerPaletteProvider);
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: AppTheme.surface,
+    backgroundColor: palette.surface,
     showDragHandle: true,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
@@ -28,7 +29,7 @@ Future<void> showAnnotationsListSheet(BuildContext context, String bookId) {
   );
 }
 
-class _AnnotationsListSheet extends ConsumerWidget {
+class _AnnotationsListSheet extends ConsumerWidget{
   const _AnnotationsListSheet({
     required this.bookId,
     required this.controller,
@@ -39,6 +40,8 @@ class _AnnotationsListSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     final bookmarksAsync = ref.watch(bookmarksProvider(bookId));
     final highlightsAsync = ref.watch(highlightsProvider(bookId));
     final readerState = ref.watch(readerViewModelProvider);
@@ -56,12 +59,12 @@ class _AnnotationsListSheet extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Marcadores e destaques',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: palette.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -136,17 +139,19 @@ class _AnnotationsListSheet extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _SectionLabel extends ConsumerWidget{
   const _SectionLabel(this.label);
   final String label;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Text(
       label.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
-        color: AppTheme.textSecondary,
+        color: palette.textSecondary,
         letterSpacing: 1.0,
         fontWeight: FontWeight.w600,
       ),
@@ -154,7 +159,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _BookmarkRow extends StatelessWidget {
+class _BookmarkRow extends ConsumerWidget{
   const _BookmarkRow({
     required this.bookmark,
     required this.chapterTitle,
@@ -170,17 +175,19 @@ class _BookmarkRow extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return _AnnotationRowShell(
-      leading: const Icon(Icons.bookmark_rounded,
-          size: 18, color: AppTheme.accent),
+      leading: Icon(Icons.bookmark_rounded,
+          size: 18, color: palette.accent),
       chapterTitle: chapterTitle ?? 'Capítulo ${bookmark.chapterIndex + 1}',
       snippet: bookmark.snippet,
       footer: bookmark.note,
       trailing: IconButton(
         onPressed: onEditNote,
         icon: const Icon(Icons.edit_note_rounded, size: 20),
-        color: AppTheme.textSecondary,
+        color: palette.textSecondary,
         visualDensity: VisualDensity.compact,
         tooltip: bookmark.note == null ? 'Adicionar nota' : 'Editar nota',
       ),
@@ -223,7 +230,7 @@ class _HighlightRow extends StatelessWidget {
   }
 }
 
-class _AnnotationRowShell extends StatelessWidget {
+class _AnnotationRowShell extends ConsumerWidget{
   const _AnnotationRowShell({
     required this.leading,
     required this.chapterTitle,
@@ -243,11 +250,13 @@ class _AnnotationRowShell extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: AppTheme.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -267,15 +276,17 @@ class _AnnotationRowShell extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         chapterTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        softWrap: false,
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textSecondary,
+                          color: palette.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -283,9 +294,10 @@ class _AnnotationRowShell extends StatelessWidget {
                         snippet,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        softWrap: true,
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textPrimary,
+                          color: palette.textPrimary,
                           height: 1.35,
                         ),
                       ),
@@ -296,9 +308,10 @@ class _AnnotationRowShell extends StatelessWidget {
                             footer!,
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            softWrap: true,
+                            style: TextStyle(
                               fontSize: 12.5,
-                              color: AppTheme.textSecondary,
+                              color: palette.textSecondary,
                               fontStyle: FontStyle.italic,
                               height: 1.3,
                             ),
@@ -311,7 +324,7 @@ class _AnnotationRowShell extends StatelessWidget {
                 IconButton(
                   onPressed: onRemove,
                   icon: const Icon(Icons.close_rounded, size: 18),
-                  color: AppTheme.textSecondary,
+                  color: palette.textSecondary,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -354,19 +367,21 @@ Future<String?> _editNoteDialog(
   );
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget{
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.bookmark_outline_rounded,
-                size: 40, color: AppTheme.textSecondary),
+            Icon(Icons.bookmark_outline_rounded,
+                size: 40, color: palette.textSecondary),
             const SizedBox(height: 12),
             Text(
               'Pressione um parágrafo para criar um marcador ou destaque.',

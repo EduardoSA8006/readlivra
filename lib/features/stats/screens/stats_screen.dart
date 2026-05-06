@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_palette.dart';
 import '../../library/data/models/book_entry.dart';
 import '../../library/providers.dart';
 import '../../library/screens/book_detail_screen.dart';
@@ -47,9 +47,6 @@ class _SummaryView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
-        Text('Estatísticas',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 12),
         _StreakCard(summary: summary),
         const SizedBox(height: 16),
         _StatGrid(summary: summary),
@@ -90,7 +87,7 @@ class _StreakCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF2E2148), Color(0xFF5C4B8A)],
+          colors: AppPalette.heroGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -198,21 +195,22 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppTheme.textSecondary,
+              color: scheme.onSurfaceVariant,
               letterSpacing: 0.5,
               fontWeight: FontWeight.w600,
             ),
@@ -223,10 +221,10 @@ class _StatTile extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               formatDuration(value),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -248,12 +246,13 @@ class _BookStatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final title = entry?.title ?? 'Livro removido';
     final author = entry?.author ?? '—';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -263,24 +262,26 @@ class _BookStatRow extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFEDE7DD)),
+              border: Border.all(color: scheme.outline),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         title,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: entry == null
-                              ? AppTheme.textSecondary
-                              : AppTheme.textPrimary,
+                              ? scheme.onSurfaceVariant
+                              : scheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -288,9 +289,10 @@ class _BookStatRow extends StatelessWidget {
                         author,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        softWrap: false,
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.textSecondary,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -302,28 +304,28 @@ class _BookStatRow extends StatelessWidget {
                   children: [
                     Text(
                       formatDuration(stat.total),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
+                        color: scheme.onSurface,
                       ),
                     ),
                     if (stat.today > Duration.zero)
                       Text(
                         'Hoje: ${formatDuration(stat.today)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppTheme.accent,
+                          color: scheme.secondary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                   ],
                 ),
                 if (onTap != null)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
                     child: Icon(Icons.chevron_right_rounded,
-                        size: 18, color: AppTheme.textSecondary),
+                        size: 18, color: scheme.onSurfaceVariant),
                   ),
               ],
             ),
@@ -339,12 +341,13 @@ class _EmptyPerBook extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       child: Text(
         'Abra um livro para começar a acompanhar seu tempo de leitura.',

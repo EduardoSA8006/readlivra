@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/reader_palette.dart';
 import '../data/font_resolver.dart';
 import '../data/models/reading_preferences.dart';
 import '../providers.dart';
 
 Future<void> showReadingPreferencesSheet(BuildContext context) {
+  final palette =
+      ProviderScope.containerOf(context).read(readerPaletteProvider);
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: AppTheme.surface,
+    backgroundColor: palette.surface,
     showDragHandle: true,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
@@ -19,11 +21,13 @@ Future<void> showReadingPreferencesSheet(BuildContext context) {
   );
 }
 
-class _ReadingPreferencesSheet extends ConsumerWidget {
+class _ReadingPreferencesSheet extends ConsumerWidget{
   const _ReadingPreferencesSheet();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     final async = ref.watch(readingPreferencesProvider);
     final vm = ref.read(readingPreferencesProvider.notifier);
     final prefs = async.value ?? ReadingPreferences.defaults;
@@ -38,13 +42,13 @@ class _ReadingPreferencesSheet extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Preferências de leitura',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: palette.textPrimary,
                     ),
                   ),
                 ),
@@ -55,6 +59,13 @@ class _ReadingPreferencesSheet extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
+            const _SectionLabel('Tema'),
+            const SizedBox(height: 8),
+            _ThemePicker(
+              current: prefs.theme,
+              onPick: (t) => vm.patch(theme: t),
+            ),
+            const SizedBox(height: 18),
             const _SectionLabel('Fonte'),
             const SizedBox(height: 8),
             _FontPicker(
@@ -107,17 +118,19 @@ class _ReadingPreferencesSheet extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _SectionLabel extends ConsumerWidget{
   const _SectionLabel(this.label);
   final String label;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Text(
       label.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
-        color: AppTheme.textSecondary,
+        color: palette.textSecondary,
         letterSpacing: 1.0,
         fontWeight: FontWeight.w600,
       ),
@@ -125,13 +138,15 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _FontPicker extends StatelessWidget {
+class _FontPicker extends ConsumerWidget{
   const _FontPicker({required this.current, required this.onPick});
   final ReadingFont current;
   final ValueChanged<ReadingFont> onPick;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return SizedBox(
       height: 40,
       child: ListView.separated(
@@ -148,11 +163,11 @@ class _FontPicker extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? AppTheme.textPrimary : AppTheme.surface,
+                color: selected ? palette.textPrimary : palette.surface,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: selected
-                      ? AppTheme.textPrimary
+                      ? palette.textPrimary
                       : const Color(0xFFEDE7DD),
                 ),
               ),
@@ -160,7 +175,7 @@ class _FontPicker extends StatelessWidget {
                 font.label,
                 style: TextStyle(
                   fontFamily: resolveFontFamily(font),
-                  color: selected ? Colors.white : AppTheme.textPrimary,
+                  color: selected ? Colors.white : palette.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -173,17 +188,19 @@ class _FontPicker extends StatelessWidget {
   }
 }
 
-class _PreviewBlock extends StatelessWidget {
+class _PreviewBlock extends ConsumerWidget{
   const _PreviewBlock({required this.prefs});
   final ReadingPreferences prefs;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.background,
+        color: palette.background,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFEDE7DD)),
       ),
@@ -196,7 +213,7 @@ class _PreviewBlock extends StatelessWidget {
               fontFamily: resolveFontFamily(prefs.font),
               fontSize: prefs.fontSize + 2,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: palette.textPrimary,
               letterSpacing: prefs.letterSpacing,
             ),
           ),
@@ -208,7 +225,7 @@ class _PreviewBlock extends StatelessWidget {
               fontFamily: resolveFontFamily(prefs.font),
               fontSize: prefs.fontSize,
               height: prefs.lineHeight,
-              color: AppTheme.textPrimary,
+              color: palette.textPrimary,
               letterSpacing: prefs.letterSpacing,
             ),
           ),
@@ -218,7 +235,7 @@ class _PreviewBlock extends StatelessWidget {
   }
 }
 
-class _SliderRow extends StatelessWidget {
+class _SliderRow extends ConsumerWidget{
   const _SliderRow({
     required this.icon,
     required this.label,
@@ -238,7 +255,9 @@ class _SliderRow extends StatelessWidget {
   final ValueChanged<double> onChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
@@ -246,23 +265,23 @@ class _SliderRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: AppTheme.textSecondary),
+              Icon(icon, size: 18, color: palette.textSecondary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Text(
                 suffix,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: palette.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -270,8 +289,8 @@ class _SliderRow extends StatelessWidget {
           ),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppTheme.textPrimary,
-              thumbColor: AppTheme.textPrimary,
+              activeTrackColor: palette.textPrimary,
+              thumbColor: palette.textPrimary,
               inactiveTrackColor: const Color(0xFFEDE7DD),
               overlayShape:
                   const RoundSliderOverlayShape(overlayRadius: 16),
@@ -285,6 +304,87 @@ class _SliderRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ThemePicker extends StatelessWidget {
+  const _ThemePicker({required this.current, required this.onPick});
+  final ReadingTheme current;
+  final ValueChanged<ReadingTheme> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < ReadingTheme.values.length; i++) ...[
+          Expanded(
+            child: _ThemePreviewCard(
+              theme: ReadingTheme.values[i],
+              selected: ReadingTheme.values[i] == current,
+              onTap: () => onPick(ReadingTheme.values[i]),
+            ),
+          ),
+          if (i < ReadingTheme.values.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ThemePreviewCard extends StatelessWidget {
+  const _ThemePreviewCard({
+    required this.theme,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ReadingTheme theme;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ReaderPalette.of(theme);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: palette.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? palette.accent : palette.outline,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Aa',
+              style: TextStyle(
+                fontFamily: 'serif',
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              theme.label,
+              style: TextStyle(
+                fontSize: 12,
+                color: palette.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

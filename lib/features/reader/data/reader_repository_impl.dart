@@ -1,10 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:archive/archive_io.dart';
 import 'package:epubx/epubx.dart' as epubx;
 
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
+import 'chapter_content_source.dart';
+import 'ebook_image_source.dart';
 import 'models/ebook.dart';
 import 'models/ebook_chapter.dart';
 import 'reader_repository.dart';
@@ -30,41 +32,77 @@ class EpubReaderRepository implements ReaderRepository {
         );
       }
 
-      final bytes = await file.readAsBytes();
-      final epubBook = await epubx.EpubReader.readBook(bytes);
+      // Use the lazy `openBook` API to list the spine + metadata without
+      // materialising every chapter's HTML up-front.
+      final eagerBytes = await file.readAsBytes();
+      final bookRef = await epubx.EpubReader.openBook(eagerBytes);
 
-      final flat = _flattenChapters(epubBook.Chapters ?? const []);
-      final chapters = flat
+      final title = (bookRef.Title ?? '').trim().isEmpty
+          ? 'Sem título'
+          : bookRef.Title!.trim();
+      final author = (bookRef.Author ?? '').trim().isEmpty
+          ? null
+          : bookRef.Author!.trim();
+
+      final chapterRefs =
+          _flattenChapterRefs(await bookRef.getChapters());
+
+      // Capture the metadata we need (title + path) and let the bookRef
+      // (along with the in-memory bytes it owns) go out of scope.
+      final chapterEntries = chapterRefs
+          .where((c) =>
+              (c.ContentFileName ?? '').isNotEmpty &&
+              (c.Title ?? '').trim().isNotEmpty || true)
+          .map((c) => _ChapterEntry(
+                title: (c.Title ?? '').trim().isEmpty
+                    ? 'Sem título'
+                    : c.Title!.trim(),
+                path: c.ContentFileName ?? '',
+              ))
+          .where((e) => e.path.isNotEmpty)
+          .toList(growable: false);
+
+      final imagePaths = bookRef.Content?.Images?.keys.toSet();
+
+      // Open a file-backed archive — bytes are fetched on demand from disk.
+      final stream = InputFileStream(path);
+      final lazyArchive = ZipDecoder().decodeBuffer(stream);
+
+      final chapters = chapterEntries
           .map(
-            (c) => EbookChapter(
-              title: (c.Title ?? '').trim().isEmpty
-                  ? 'Sem título'
-                  : c.Title!.trim(),
-              htmlContent: c.HtmlContent ?? '',
+            (entry) => EbookChapter(
+              title: entry.title,
+              source: LazyArchiveChapterSource(
+                archive: lazyArchive,
+                path: entry.path,
+              ),
             ),
           )
-          .where((c) => c.htmlContent.isNotEmpty)
           .toList(growable: false);
 
       if (chapters.isEmpty) {
+        stream.closeSync();
         return const Err(
           ParseException('EPUB não contém capítulos legíveis.'),
         );
       }
 
-      final title = (epubBook.Title ?? '').trim().isEmpty
-          ? 'Sem título'
-          : epubBook.Title!.trim();
-      final author = (epubBook.Author ?? '').trim().isEmpty
-          ? null
-          : epubBook.Author!.trim();
+      final paths = imagePaths ??
+          lazyArchive.files
+              .where((f) => f.isFile && _looksLikeImage(f.name))
+              .map((f) => f.name)
+              .toSet();
 
       return Ok(
         Ebook(
           title: title,
           author: author,
           chapters: chapters,
-          images: _extractImages(epubBook),
+          imageSource: LazyArchiveImageSource(
+            archive: lazyArchive,
+            imagePaths: paths,
+            owningStream: stream,
+          ),
         ),
       );
     } on FileSystemException catch (e, s) {
@@ -86,28 +124,32 @@ class EpubReaderRepository implements ReaderRepository {
     }
   }
 
-  Map<String, Uint8List> _extractImages(epubx.EpubBook book) {
-    final out = <String, Uint8List>{};
-    final imgs = book.Content?.Images;
-    if (imgs == null) return out;
-    for (final entry in imgs.entries) {
-      final bytes = entry.value.Content;
-      if (bytes != null && bytes.isNotEmpty) {
-        out[entry.key] = Uint8List.fromList(bytes);
-      }
-    }
-    return out;
+  bool _looksLikeImage(String name) {
+    final lower = name.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.svg');
   }
 
-  List<epubx.EpubChapter> _flattenChapters(List<epubx.EpubChapter> input) {
-    final out = <epubx.EpubChapter>[];
+  List<epubx.EpubChapterRef> _flattenChapterRefs(
+      List<epubx.EpubChapterRef> input) {
+    final out = <epubx.EpubChapterRef>[];
     for (final ch in input) {
       out.add(ch);
       final subs = ch.SubChapters;
       if (subs != null && subs.isNotEmpty) {
-        out.addAll(_flattenChapters(subs));
+        out.addAll(_flattenChapterRefs(subs));
       }
     }
     return out;
   }
+}
+
+class _ChapterEntry {
+  const _ChapterEntry({required this.title, required this.path});
+  final String title;
+  final String path;
 }

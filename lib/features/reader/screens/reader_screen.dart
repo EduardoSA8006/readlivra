@@ -1,17 +1,18 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../core/result/app_exceptions.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../stats/data/reading_session_service.dart';
 import '../../stats/providers.dart';
 import '../../library/data/models/bookmark.dart';
 import '../../library/data/models/highlight.dart';
 import '../../library/providers.dart';
+import '../data/block_cache.dart';
 import '../data/chapter_blocks.dart';
 import '../data/font_resolver.dart';
 import '../data/highlight_renderer.dart';
@@ -131,6 +132,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(readerViewModelProvider);
     final vm = ref.read(readerViewModelProvider.notifier);
+    final palette = ref.watch(readerPaletteProvider);
 
     // Track session lifecycle as the reader transitions between states.
     ref.listen<ReaderState>(readerViewModelProvider, (prev, next) async {
@@ -149,7 +151,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
     final readingState = state is ReaderReading ? state : null;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: palette.background,
       drawer: readingState == null
           ? null
           : TocDrawer(
@@ -164,12 +166,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       // Only allow the edge-swipe gesture while reading.
       drawerEnableOpenDragGesture: readingState != null,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: palette.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          color: AppTheme.textPrimary,
+          color: palette.textPrimary,
           onPressed: () {
             final navigator = Navigator.of(context);
             _trackedBookId = null;
@@ -186,17 +188,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                   ebook.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
                 Text(
                   'Cap. ${chapterIndex + 1} de ${ebook.chapterCount}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppTheme.textSecondary,
+                    color: palette.textSecondary,
                   ),
                 ),
               ],
@@ -208,24 +210,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           if (readingState != null)
             Builder(
               builder: (ctx) => IconButton(
-                icon: const Icon(Icons.format_list_bulleted_rounded,
-                    color: AppTheme.textPrimary),
+                icon: Icon(Icons.format_list_bulleted_rounded,
+                    color: palette.textPrimary),
                 tooltip: 'Sumário',
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
               ),
             ),
           if (readingState != null && readingState.bookId != null)
             IconButton(
-              icon: const Icon(Icons.bookmarks_outlined,
-                  color: AppTheme.textPrimary),
+              icon: Icon(Icons.bookmarks_outlined,
+                  color: palette.textPrimary),
               tooltip: 'Marcadores e destaques',
               onPressed: () =>
                   showAnnotationsListSheet(context, readingState.bookId!),
             ),
           if (readingState != null)
             IconButton(
-              icon: const Icon(Icons.text_fields_rounded,
-                  color: AppTheme.textPrimary),
+              icon: Icon(Icons.text_fields_rounded,
+                  color: palette.textPrimary),
               tooltip: 'Preferências de leitura',
               onPressed: () => showReadingPreferencesSheet(context),
             ),
@@ -247,20 +249,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 }
 
-class _IdleView extends StatelessWidget {
+class _IdleView extends ConsumerWidget{
   const _IdleView({required this.onOpen});
   final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.menu_book_rounded,
-                size: 56, color: AppTheme.textSecondary),
+            Icon(Icons.menu_book_rounded,
+                size: 56, color: palette.textSecondary),
             const SizedBox(height: 16),
             Text(
               'Selecione um arquivo .epub para começar',
@@ -271,7 +275,7 @@ class _IdleView extends StatelessWidget {
             FilledButton.icon(
               onPressed: onOpen,
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.textPrimary,
+                backgroundColor: palette.textPrimary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                     horizontal: 22, vertical: 14),
@@ -332,16 +336,24 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
   final _itemScrollController = ItemScrollController();
   final _itemPositionsListener = ItemPositionsListener.create();
 
-  /// Two slots per chapter: index 0 is the chapter title, the rest are blocks.
-  final Map<int, List<String>> _blocksCache = {};
+  /// Block cache keeps the current chapter ± 1 in memory; everything past
+  /// that is dropped to keep memory pressure low on big books.
+  final BlockCache _cache = BlockCache(keepAround: 1);
+  static const _prefetchRange = 2;
+  final Set<int> _pending = <int>{};
+
   bool _anchorRestored = false;
+  List<String>? _currentBlocks;
 
   @override
   void initState() {
     super.initState();
     _itemPositionsListener.itemPositions.addListener(_onItemPositions);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _maybeRestoreAnchor());
+    _ensureCurrentBlocks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeRestoreAnchor();
+      _scheduleHousekeeping();
+    });
   }
 
   @override
@@ -349,24 +361,72 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     super.didUpdateWidget(old);
     if (old.state.chapterIndex != widget.state.chapterIndex) {
       _anchorRestored = false;
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _maybeRestoreAnchor());
+      _ensureCurrentBlocks();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybeRestoreAnchor();
+        _scheduleHousekeeping();
+      });
     }
   }
 
   @override
   void dispose() {
     _itemPositionsListener.itemPositions.removeListener(_onItemPositions);
+    _cache.clear();
     super.dispose();
   }
 
-  List<String> _blocksFor(int chapterIndex) {
-    final cached = _blocksCache[chapterIndex];
+  /// Loads (or reuses) the blocks for the chapter the widget is currently
+  /// pointing at and stores them in [_currentBlocks]. While the load is in
+  /// flight the view shows a small spinner.
+  void _ensureCurrentBlocks() {
+    final idx = widget.state.chapterIndex;
+    final cached = _cache.get(idx);
+    if (cached != null) {
+      _currentBlocks = cached;
+      return;
+    }
+    _currentBlocks = null;
+    _loadBlocks(idx).then((blocks) {
+      if (!mounted) return;
+      if (widget.state.chapterIndex != idx) return;
+      setState(() => _currentBlocks = blocks);
+    });
+  }
+
+  Future<List<String>> _loadBlocks(int chapterIndex) async {
+    final cached = _cache.get(chapterIndex);
     if (cached != null) return cached;
-    final html = widget.state.ebook.chapters[chapterIndex].htmlContent;
-    final blocks = splitChapterIntoBlocks(html);
-    _blocksCache[chapterIndex] = blocks;
+    final chapter = widget.state.ebook.chapters[chapterIndex];
+    final html = await chapter.loadHtml();
+    final blocks = await compute(splitChapterIntoBlocks, html);
+    _cache.put(chapterIndex, blocks);
     return blocks;
+  }
+
+  Future<void> _prefetchNeighbor(int chapterIndex) async {
+    final ebook = widget.state.ebook;
+    if (chapterIndex < 0 || chapterIndex >= ebook.chapterCount) return;
+    if (_cache.contains(chapterIndex) || _pending.contains(chapterIndex)) {
+      return;
+    }
+    _pending.add(chapterIndex);
+    try {
+      await _loadBlocks(chapterIndex);
+    } catch (_) {
+      // Best-effort: a sync parse will run on the next visit if this fails.
+    } finally {
+      _pending.remove(chapterIndex);
+    }
+  }
+
+  void _scheduleHousekeeping() {
+    final current = widget.state.chapterIndex;
+    _cache.evictFar(current);
+    for (var d = 1; d <= _prefetchRange; d++) {
+      _prefetchNeighbor(current + d);
+      _prefetchNeighbor(current - d);
+    }
   }
 
   void _maybeRestoreAnchor() {
@@ -376,7 +436,8 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
       _anchorRestored = true;
       return;
     }
-    final blocks = _blocksFor(widget.state.chapterIndex);
+    final blocks = _currentBlocks;
+    if (blocks == null) return; // try again once blocks are loaded
     // +1 because index 0 is reserved for the title.
     final target = (anchor.blockIndex + 1).clamp(0, blocks.length);
     if (!_itemScrollController.isAttached) return;
@@ -426,9 +487,13 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _maybeRestoreAnchor());
     }
-    final blocks = _blocksFor(widget.state.chapterIndex);
+    final blocks = _currentBlocks;
+    if (blocks == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     final prefs = ref.watch(readingPreferencesProvider).value ??
         ReadingPreferences.defaults;
+    final palette = ref.watch(readerPaletteProvider);
     final bookId = widget.state.bookId;
 
     final bookmarks = bookId == null
@@ -453,6 +518,10 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      // Don't keep off-screen blocks alive — let the engine free their
+      // RenderObjects so memory stays bounded on long chapters.
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: true,
       itemCount: blocks.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -464,7 +533,7 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
                 fontFamily: resolveFontFamily(prefs.font),
                 fontSize: prefs.fontSize + 5,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: palette.textPrimary,
                 height: 1.25,
                 letterSpacing: prefs.letterSpacing,
               ),
@@ -523,6 +592,7 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
     final bookId = widget.bookId;
     final bookmarked = widget.bookmarked;
     final highlights = widget.highlights;
+    final palette = ref.watch(readerPaletteProvider);
     final family = resolveFontFamily(prefs.font);
     final partials =
         highlights.where((h) => !h.isWholeBlock).toList(growable: false);
@@ -549,14 +619,14 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
         fontSize: FontSize(prefs.fontSize),
         lineHeight: LineHeight(prefs.lineHeight),
         letterSpacing: prefs.letterSpacing,
-        color: AppTheme.textPrimary,
+        color: palette.textPrimary,
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
       ),
       'p': Style(margin: Margins.only(bottom: prefs.paragraphSpacing)),
       'h1, h2, h3': Style(
         fontFamily: family,
-        color: AppTheme.textPrimary,
+        color: palette.textPrimary,
       ),
       'mark': Style(
         // Style attribute on each <mark> already paints background/border;
@@ -573,12 +643,7 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
           builder: (ctx) {
             final src = ctx.attributes['src'];
             if (src == null || src.isEmpty) return const SizedBox.shrink();
-            final bytes = ebook.resolveImage(src);
-            if (bytes == null) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Image.memory(bytes, fit: BoxFit.contain),
-            );
+            return _AsyncEpubImage(ebook: ebook, src: src);
           },
         ),
       ],
@@ -603,9 +668,9 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
     } else if (bookmarked) {
       content = Container(
         padding: const EdgeInsets.only(left: 8),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            left: BorderSide(color: AppTheme.accent, width: 2),
+            left: BorderSide(color: palette.accent, width: 2),
           ),
         ),
         child: htmlWidget,
@@ -661,13 +726,15 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
   }
 }
 
-class _ReaderBottomBar extends ConsumerWidget {
+class _ReaderBottomBar extends ConsumerWidget{
   const _ReaderBottomBar({required this.state, required this.vm});
   final ReaderReading state;
   final ReaderViewModel vm;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     final bookId = state.bookId;
     final position = ref.watch(readingPositionProvider);
     final bookmarks = bookId == null
@@ -708,8 +775,8 @@ class _ReaderBottomBar extends ConsumerWidget {
     }
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
+      decoration: BoxDecoration(
+        color: palette.surface,
         border: Border(top: BorderSide(color: Color(0xFFEDE7DD))),
       ),
       child: SafeArea(
@@ -724,7 +791,7 @@ class _ReaderBottomBar extends ConsumerWidget {
                 minHeight: 3,
                 backgroundColor: const Color(0xFFEDE7DD),
                 valueColor:
-                    const AlwaysStoppedAnimation(AppTheme.accent),
+                    AlwaysStoppedAnimation(palette.accent),
               ),
             ),
             SizedBox(
@@ -738,7 +805,7 @@ class _ReaderBottomBar extends ConsumerWidget {
                       icon: const Icon(Icons.chevron_left_rounded),
                       label: const Text('Anterior'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.textPrimary,
+                        foregroundColor: palette.textPrimary,
                       ),
                     ),
                   ),
@@ -755,8 +822,8 @@ class _ReaderBottomBar extends ConsumerWidget {
                           ? Icons.bookmark_rounded
                           : Icons.bookmark_outline_rounded,
                       color: hasBookmarkOnCurrentBlock
-                          ? AppTheme.accent
-                          : AppTheme.textPrimary,
+                          ? palette.accent
+                          : palette.textPrimary,
                     ),
                   ),
                   Expanded(
@@ -765,7 +832,7 @@ class _ReaderBottomBar extends ConsumerWidget {
                       icon: const Icon(Icons.chevron_right_rounded),
                       label: const Text('Próximo'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.textPrimary,
+                        foregroundColor: palette.textPrimary,
                       ),
                     ),
                   ),
@@ -774,6 +841,77 @@ class _ReaderBottomBar extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AsyncEpubImage extends StatefulWidget {
+  const _AsyncEpubImage({required this.ebook, required this.src});
+
+  final Ebook ebook;
+  final String src;
+
+  @override
+  State<_AsyncEpubImage> createState() => _AsyncEpubImageState();
+}
+
+class _AsyncEpubImageState extends State<_AsyncEpubImage> {
+  Uint8List? _bytes;
+  bool _loading = true;
+  bool _missing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AsyncEpubImage old) {
+    super.didUpdateWidget(old);
+    if (old.src != widget.src || old.ebook != widget.ebook) {
+      _bytes = null;
+      _loading = true;
+      _missing = false;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final bytes = await widget.ebook.resolveImage(widget.src);
+    if (!mounted) return;
+    setState(() {
+      _bytes = bytes;
+      _loading = false;
+      _missing = bytes == null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: SizedBox(
+          height: 80,
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_missing || _bytes == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Image.memory(
+        _bytes!,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
       ),
     );
   }

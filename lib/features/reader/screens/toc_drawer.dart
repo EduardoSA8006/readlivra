@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../data/models/ebook.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers.dart';
 
-class TocDrawer extends StatelessWidget {
+class TocDrawer extends ConsumerWidget{
   const TocDrawer({
     super.key,
     required this.ebook,
@@ -17,11 +18,13 @@ class TocDrawer extends StatelessWidget {
   final void Function(int chapterIndex) onChapterTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     final controller = ItemScrollController();
     final initial = currentChapter.clamp(0, ebook.chapterCount - 1).toInt();
     return Drawer(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: palette.surface,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,13 +34,13 @@ class TocDrawer extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'SUMÁRIO',
                     style: TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.0,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textSecondary,
+                      color: palette.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -45,10 +48,11 @@ class TocDrawer extends StatelessWidget {
                     ebook.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    softWrap: true,
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: palette.textPrimary,
                       height: 1.2,
                     ),
                   ),
@@ -58,18 +62,19 @@ class TocDrawer extends StatelessWidget {
                       ebook.author!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      softWrap: false,
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textSecondary,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ],
                   const SizedBox(height: 8),
                   Text(
                     '${ebook.chapterCount} ${ebook.chapterCount == 1 ? "capítulo" : "capítulos"}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
@@ -101,7 +106,7 @@ class TocDrawer extends StatelessWidget {
   }
 }
 
-class _ChapterTile extends StatelessWidget {
+class _ChapterTile extends ConsumerWidget{
   const _ChapterTile({
     required this.index,
     required this.title,
@@ -115,18 +120,20 @@ class _ChapterTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: isCurrent
-              ? AppTheme.accent.withValues(alpha: 0.08)
+              ? palette.accent.withValues(alpha: 0.08)
               : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: isCurrent ? AppTheme.accent : Colors.transparent,
+              color: isCurrent ? palette.accent : Colors.transparent,
               width: 3,
             ),
           ),
@@ -142,7 +149,7 @@ class _ChapterTile extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color:
-                      isCurrent ? AppTheme.accent : AppTheme.textSecondary,
+                      isCurrent ? palette.accent : palette.textSecondary,
                 ),
               ),
             ),
@@ -152,9 +159,10 @@ class _ChapterTile extends StatelessWidget {
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textPrimary,
+                  color: palette.textPrimary,
                   fontWeight:
                       isCurrent ? FontWeight.w700 : FontWeight.w500,
                   height: 1.3,
@@ -162,10 +170,10 @@ class _ChapterTile extends StatelessWidget {
               ),
             ),
             if (isCurrent)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(left: 6),
                 child: Icon(Icons.bookmark_rounded,
-                    size: 16, color: AppTheme.accent),
+                    size: 16, color: palette.accent),
               ),
           ],
         ),

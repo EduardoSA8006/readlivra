@@ -19,8 +19,26 @@ enum ReadingFont {
   }
 }
 
+enum ReadingTheme {
+  light('Claro', 'light'),
+  sepia('Sépia', 'sepia'),
+  dark('Escuro', 'dark');
+
+  const ReadingTheme(this.label, this.id);
+  final String label;
+  final String id;
+
+  static ReadingTheme fromId(String? id) {
+    for (final t in ReadingTheme.values) {
+      if (t.id == id) return t;
+    }
+    return ReadingTheme.light;
+  }
+}
+
 class ReadingPreferences {
   const ReadingPreferences({
+    required this.theme,
     required this.font,
     required this.fontSize,
     required this.lineHeight,
@@ -28,7 +46,7 @@ class ReadingPreferences {
     required this.paragraphSpacing,
   });
 
-  /// Font family used to render EPUB content.
+  final ReadingTheme theme;
   final ReadingFont font;
 
   /// Body font size in logical pixels.
@@ -44,6 +62,7 @@ class ReadingPreferences {
   final double paragraphSpacing;
 
   static const defaults = ReadingPreferences(
+    theme: ReadingTheme.light,
     font: ReadingFont.systemSerif,
     fontSize: 17,
     lineHeight: 1.55,
@@ -58,6 +77,7 @@ class ReadingPreferences {
   static const paragraphSpacingRange = (min: 0.0, max: 36.0);
 
   ReadingPreferences copyWith({
+    ReadingTheme? theme,
     ReadingFont? font,
     double? fontSize,
     double? lineHeight,
@@ -65,6 +85,7 @@ class ReadingPreferences {
     double? paragraphSpacing,
   }) =>
       ReadingPreferences(
+        theme: theme ?? this.theme,
         font: font ?? this.font,
         fontSize: fontSize ?? this.fontSize,
         lineHeight: lineHeight ?? this.lineHeight,
@@ -73,6 +94,7 @@ class ReadingPreferences {
       );
 
   Map<String, dynamic> toJson() => {
+        'theme': theme.id,
         'font': font.id,
         'fontSize': fontSize,
         'lineHeight': lineHeight,
@@ -82,6 +104,7 @@ class ReadingPreferences {
 
   factory ReadingPreferences.fromJson(Map<String, dynamic> json) {
     return ReadingPreferences(
+      theme: ReadingTheme.fromId(json['theme'] as String?),
       font: ReadingFont.fromId(json['font'] as String?),
       fontSize: ((json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize)
           .clamp(fontSizeRange.min, fontSizeRange.max),

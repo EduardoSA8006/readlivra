@@ -52,6 +52,7 @@ class ReaderViewModel extends Notifier<ReaderState> {
     int? initialChapter,
     ReaderAnchor? initialAnchor,
   }) async {
+    _disposeCurrentEbook();
     state = const ReaderLoading();
     final result = await _repository.openEpub(path);
 
@@ -200,7 +201,15 @@ class ReaderViewModel extends Notifier<ReaderState> {
   }
 
   void close() {
+    _disposeCurrentEbook();
     state = const ReaderIdle();
+  }
+
+  void _disposeCurrentEbook() {
+    final s = state;
+    if (s is ReaderReading) {
+      s.ebook.imageSource.dispose();
+    }
   }
 
   void _resetSaveTracking(ReaderAnchor? anchor) {

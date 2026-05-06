@@ -55,6 +55,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final repo = SharedPrefsReadingPreferencesRepository(prefs);
       const target = ReadingPreferences(
+        theme: ReadingTheme.sepia,
         font: ReadingFont.lora,
         fontSize: 19,
         lineHeight: 1.7,
@@ -64,6 +65,7 @@ void main() {
       await repo.save(target);
 
       final read = (await repo.get()).valueOrNull!;
+      expect(read.theme, target.theme);
       expect(read.font, target.font);
       expect(read.fontSize, target.fontSize);
       expect(read.lineHeight, target.lineHeight);

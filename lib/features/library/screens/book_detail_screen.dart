@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../reader/screens/reader_screen.dart';
 import '../../stats/screens/stats_screen.dart' show formatDuration;
 import '../data/models/book_entry.dart';
@@ -19,23 +18,24 @@ class BookDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final async = ref.watch(bookDetailViewModelProvider(bookId));
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: AppTheme.background,
+        backgroundColor: scheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded,
-              color: AppTheme.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded,
+              color: scheme.onSurface),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text(
+        title: Text(
           'Detalhes',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: scheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
@@ -63,6 +63,7 @@ class _DetailContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final vm = ref.read(bookDetailViewModelProvider(bookId).notifier);
 
     Future<void> openReader({
@@ -92,10 +93,13 @@ class _DetailContent extends ConsumerWidget {
         Text(
           data.book.title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: scheme.onSurface,
             height: 1.2,
           ),
         ),
@@ -103,9 +107,12 @@ class _DetailContent extends ConsumerWidget {
         Text(
           data.book.author ?? 'Autor desconhecido',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
+          style: TextStyle(
             fontSize: 14,
-            color: AppTheme.textSecondary,
+            color: scheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 18),
@@ -245,7 +252,9 @@ class _FallbackCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: decoration,
       child: Align(
@@ -253,6 +262,8 @@ class _FallbackCover extends StatelessWidget {
         child: Text(
           title,
           maxLines: 6,
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -260,6 +271,7 @@ class _FallbackCover extends StatelessWidget {
             height: 1.2,
           ),
         ),
+      ),
       ),
     );
   }
@@ -272,6 +284,7 @@ class _ContinueButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final hasProgress = data.currentChapter > 0 ||
         data.progress.blockIndex > 0 ||
         data.progress.blockAlignment > 0;
@@ -280,7 +293,7 @@ class _ContinueButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: onTap,
         style: FilledButton.styleFrom(
-          backgroundColor: AppTheme.textPrimary,
+          backgroundColor: scheme.onSurface,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
@@ -336,21 +349,22 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppTheme.textSecondary,
+              color: scheme.onSurfaceVariant,
               letterSpacing: 0.5,
               fontWeight: FontWeight.w600,
             ),
@@ -361,10 +375,10 @@ class _StatTile extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -380,6 +394,7 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final pct = (data.chapterProgress * 100).round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,18 +404,18 @@ class _ProgressBar extends StatelessWidget {
           children: [
             Text(
               'Capítulo ${data.currentChapter + 1} de ${data.chapterCount}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: scheme.onSurface,
               ),
             ),
             Text(
               '$pct%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.accent,
+                color: scheme.secondary,
               ),
             ),
           ],
@@ -411,9 +426,9 @@ class _ProgressBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: data.chapterProgress,
             minHeight: 5,
-            backgroundColor: const Color(0xFFEDE7DD),
+            backgroundColor: scheme.outline,
             valueColor:
-                const AlwaysStoppedAnimation(AppTheme.accent),
+                AlwaysStoppedAnimation(scheme.secondary),
           ),
         ),
       ],
@@ -440,6 +455,7 @@ class _AnnotationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final bookmarks =
         ref.watch(bookmarksProvider(bookId)).value ?? const <Bookmark>[];
     final highlights =
@@ -466,8 +482,8 @@ class _AnnotationsSection extends ConsumerWidget {
         if (bookmarks.isNotEmpty) ...[
           ...bookmarks.take(6).map(
                 (b) => _MiniRow(
-                  leading: const Icon(Icons.bookmark_rounded,
-                      size: 16, color: AppTheme.accent),
+                  leading: Icon(Icons.bookmark_rounded,
+                      size: 16, color: scheme.secondary),
                   chapterTitle: chapterTitle(b.chapterIndex),
                   snippet: b.snippet,
                   note: b.note,
@@ -483,9 +499,9 @@ class _AnnotationsSection extends ConsumerWidget {
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
                 '+ ${bookmarks.length - 6} marcadores',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -516,9 +532,9 @@ class _AnnotationsSection extends ConsumerWidget {
               padding: const EdgeInsets.only(left: 4),
               child: Text(
                 '+ ${highlights.length - 6} destaques',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -546,10 +562,11 @@ class _MiniRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
@@ -559,7 +576,7 @@ class _MiniRow extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFEDE7DD)),
+              border: Border.all(color: scheme.outline),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -569,14 +586,16 @@ class _MiniRow extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         chapterTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        softWrap: false,
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppTheme.textSecondary,
+                          color: scheme.onSurfaceVariant,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -585,9 +604,10 @@ class _MiniRow extends StatelessWidget {
                         snippet,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        softWrap: true,
+                        style: TextStyle(
                           fontSize: 12.5,
-                          color: AppTheme.textPrimary,
+                          color: scheme.onSurface,
                           height: 1.3,
                         ),
                       ),
@@ -598,9 +618,10 @@ class _MiniRow extends StatelessWidget {
                             note!,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            softWrap: true,
+                            style: TextStyle(
                               fontSize: 11.5,
-                              color: AppTheme.textSecondary,
+                              color: scheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -623,11 +644,12 @@ class _DetailsExpansion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDE7DD)),
+        border: Border.all(color: scheme.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
@@ -640,12 +662,12 @@ class _DetailsExpansion extends StatelessWidget {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          title: const Text(
+          title: Text(
             'Detalhes do arquivo',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: scheme.onSurface,
             ),
           ),
           children: [
@@ -659,7 +681,7 @@ class _DetailsExpansion extends StatelessWidget {
             ),
             _DetailRow(
               label: 'Imagens embutidas',
-              value: '${data.ebook.images.length}',
+              value: '${data.ebook.imageCount}',
             ),
             if (data.fileSizeBytes != null)
               _DetailRow(
@@ -695,6 +717,7 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -704,9 +727,9 @@ class _DetailRow extends StatelessWidget {
             width: 130,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -714,9 +737,10 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
+              softWrap: true,
               style: TextStyle(
                 fontSize: 12.5,
-                color: AppTheme.textPrimary,
+                color: scheme.onSurface,
                 fontFamily: monospace ? 'monospace' : null,
               ),
             ),
@@ -742,14 +766,15 @@ class _ChapterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: AppTheme.surface,
+      color: scheme.surface,
       child: InkWell(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: const Color(0xFFEDE7DD).withValues(alpha: 0.6)),
+              bottom: BorderSide(color: scheme.outline.withValues(alpha: 0.6)),
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
@@ -764,29 +789,30 @@ class _ChapterRow extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: isCurrent
-                        ? AppTheme.accent
-                        : AppTheme.textSecondary,
+                        ? scheme.secondary
+                        : scheme.onSurfaceVariant,
                   ),
                 ),
               ),
               Expanded(
                 child: Text(
                   title,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppTheme.textPrimary,
+                    color: scheme.onSurface,
                     fontWeight:
                         isCurrent ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
               if (isCurrent)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 6),
                   child: Icon(Icons.bookmark_rounded,
-                      size: 16, color: AppTheme.accent),
+                      size: 16, color: scheme.secondary),
                 ),
             ],
           ),
@@ -807,6 +833,7 @@ class _DangerActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         OutlinedButton.icon(
@@ -814,7 +841,7 @@ class _DangerActions extends StatelessWidget {
           icon: const Icon(Icons.restart_alt_rounded),
           label: const Text('Resetar progresso'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppTheme.textPrimary,
+            foregroundColor: scheme.onSurface,
             minimumSize: const Size.fromHeight(44),
           ),
         ),
