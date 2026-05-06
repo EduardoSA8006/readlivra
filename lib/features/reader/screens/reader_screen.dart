@@ -517,7 +517,7 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       // Don't keep off-screen blocks alive — let the engine free their
       // RenderObjects so memory stays bounded on long chapters.
       addAutomaticKeepAlives: false,
@@ -613,6 +613,9 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
                 .toList(),
           );
 
+    final bodyAlign = _toTextAlign(prefs.textAlign);
+    final headingAlign =
+        prefs.centerHeadings ? TextAlign.center : bodyAlign;
     final blockStyle = <String, Style>{
       'body': Style(
         fontFamily: family,
@@ -622,11 +625,16 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
         color: palette.textPrimary,
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
+        textAlign: bodyAlign,
       ),
-      'p': Style(margin: Margins.only(bottom: prefs.paragraphSpacing)),
-      'h1, h2, h3': Style(
+      'p': Style(
+        margin: Margins.only(bottom: prefs.paragraphSpacing),
+        textAlign: bodyAlign,
+      ),
+      'h1, h2, h3, h4, h5, h6': Style(
         fontFamily: family,
         color: palette.textPrimary,
+        textAlign: headingAlign,
       ),
       'mark': Style(
         // Style attribute on each <mark> already paints background/border;
@@ -914,5 +922,18 @@ class _AsyncEpubImageState extends State<_AsyncEpubImage> {
         gaplessPlayback: true,
       ),
     );
+  }
+}
+
+TextAlign _toTextAlign(ReadingTextAlign value) {
+  switch (value) {
+    case ReadingTextAlign.left:
+      return TextAlign.left;
+    case ReadingTextAlign.center:
+      return TextAlign.center;
+    case ReadingTextAlign.right:
+      return TextAlign.right;
+    case ReadingTextAlign.justify:
+      return TextAlign.justify;
   }
 }

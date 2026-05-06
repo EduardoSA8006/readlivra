@@ -35,7 +35,7 @@ class SettingsScreen extends ConsumerWidget {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             _SectionLabel(label: 'APARÊNCIA', color: scheme.onSurfaceVariant),
             const SizedBox(height: 8),

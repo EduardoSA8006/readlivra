@@ -22,6 +22,7 @@ class ReadingSummary {
     required this.activeDays,
     required this.installedAt,
     required this.perBook,
+    required this.dailyTotals,
   });
 
   final Duration today;
@@ -33,4 +34,7 @@ class ReadingSummary {
   final DateTime installedAt;
   final List<BookReadingTotal> perBook;
 
+  /// Total reading time per local calendar day. Keys are date-only
+  /// (no time component). Used to draw the weekly histogram.
+  final Map<DateTime, Duration> dailyTotals;
 }

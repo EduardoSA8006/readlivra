@@ -61,6 +61,8 @@ void main() {
         lineHeight: 1.7,
         letterSpacing: 0.5,
         paragraphSpacing: 22,
+        textAlign: ReadingTextAlign.justify,
+        centerHeadings: false,
       );
       await repo.save(target);
 
@@ -71,6 +73,8 @@ void main() {
       expect(read.lineHeight, target.lineHeight);
       expect(read.letterSpacing, target.letterSpacing);
       expect(read.paragraphSpacing, target.paragraphSpacing);
+      expect(read.textAlign, target.textAlign);
+      expect(read.centerHeadings, target.centerHeadings);
     });
   });
 }

@@ -40,6 +40,7 @@ ReadingSummary composeReadingSummary({
   var weekMs = 0;
   var monthMs = 0;
   var allMs = 0;
+  final dailyMs = <DateTime, int>{};
 
   final perBookTotals = <String, ({int total, int today, DateTime? last})>{};
 
@@ -64,7 +65,10 @@ ReadingSummary composeReadingSummary({
         bookToday += ms;
       }
       if (!date.isBefore(last7Cutoff)) weekMs += ms;
-      if (!date.isBefore(last30Cutoff)) monthMs += ms;
+      if (!date.isBefore(last30Cutoff)) {
+        monthMs += ms;
+        dailyMs[date] = (dailyMs[date] ?? 0) + ms;
+      }
     }
 
     perBookTotals[bookId] = (
@@ -93,6 +97,10 @@ ReadingSummary composeReadingSummary({
     activeDays: activeDates.length,
     installedAt: installedAt,
     perBook: perBook,
+    dailyTotals: {
+      for (final entry in dailyMs.entries)
+        entry.key: Duration(milliseconds: entry.value),
+    },
   );
 }
 

@@ -35,7 +35,7 @@ class _ReadingPreferencesSheet extends ConsumerWidget{
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,6 +110,150 @@ class _ReadingPreferencesSheet extends ConsumerWidget{
               max: ReadingPreferences.paragraphSpacingRange.max,
               suffix: '${prefs.paragraphSpacing.toStringAsFixed(0)} px',
               onChanged: (v) => vm.patch(paragraphSpacing: v),
+            ),
+            const SizedBox(height: 18),
+            const _SectionLabel('Alinhamento'),
+            const SizedBox(height: 8),
+            _AlignPicker(
+              current: prefs.textAlign,
+              onPick: (a) => vm.patch(textAlign: a),
+            ),
+            const SizedBox(height: 8),
+            _CenterHeadingsToggle(
+              value: prefs.centerHeadings,
+              onChanged: (v) => vm.patch(centerHeadings: v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AlignPicker extends ConsumerWidget {
+  const _AlignPicker({required this.current, required this.onPick});
+  final ReadingTextAlign current;
+  final ValueChanged<ReadingTextAlign> onPick;
+
+  static const _icons = <ReadingTextAlign, IconData>{
+    ReadingTextAlign.left: Icons.format_align_left_rounded,
+    ReadingTextAlign.center: Icons.format_align_center_rounded,
+    ReadingTextAlign.right: Icons.format_align_right_rounded,
+    ReadingTextAlign.justify: Icons.format_align_justify_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.outline),
+      ),
+      child: Row(
+        children: [
+          for (final a in ReadingTextAlign.values)
+            Expanded(
+              child: _AlignOption(
+                icon: _icons[a]!,
+                tooltip: a.label,
+                selected: a == current,
+                onTap: () => onPick(a),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlignOption extends ConsumerWidget {
+  const _AlignOption({
+    required this.icon,
+    required this.tooltip,
+    required this.selected,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? palette.textPrimary : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: selected ? Colors.white : palette.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterHeadingsToggle extends ConsumerWidget {
+  const _CenterHeadingsToggle({required this.value, required this.onChanged});
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = ref.watch(readerPaletteProvider);
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              Icons.title_rounded,
+              size: 18,
+              color: palette.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Centralizar título',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Mantém títulos sempre centralizados',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: palette.accent,
             ),
           ],
         ),
@@ -196,6 +340,10 @@ class _PreviewBlock extends ConsumerWidget{
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(readerPaletteProvider);
 
+    final bodyAlign = _toFlutterAlign(prefs.textAlign);
+    final headingAlign =
+        prefs.centerHeadings ? TextAlign.center : bodyAlign;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -205,10 +353,11 @@ class _PreviewBlock extends ConsumerWidget{
         border: Border.all(color: const Color(0xFFEDE7DD)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Pré-visualização',
+            textAlign: headingAlign,
             style: TextStyle(
               fontFamily: resolveFontFamily(prefs.font),
               fontSize: prefs.fontSize + 2,
@@ -221,6 +370,7 @@ class _PreviewBlock extends ConsumerWidget{
           Text(
             'Era uma vez, no fim do mundo, um leitor que ajustou a tipografia '
             'até cada linha respirar como deveria.',
+            textAlign: bodyAlign,
             style: TextStyle(
               fontFamily: resolveFontFamily(prefs.font),
               fontSize: prefs.fontSize,
@@ -232,6 +382,19 @@ class _PreviewBlock extends ConsumerWidget{
         ],
       ),
     );
+  }
+}
+
+TextAlign _toFlutterAlign(ReadingTextAlign value) {
+  switch (value) {
+    case ReadingTextAlign.left:
+      return TextAlign.left;
+    case ReadingTextAlign.center:
+      return TextAlign.center;
+    case ReadingTextAlign.right:
+      return TextAlign.right;
+    case ReadingTextAlign.justify:
+      return TextAlign.justify;
   }
 }
 

@@ -7,18 +7,8 @@ import '../data/models/book_entry.dart';
 import '../data/models/book_progress.dart';
 import '../providers.dart';
 import '../viewmodels/library_state.dart';
+import '../viewmodels/library_ui_notifier.dart';
 import 'book_detail_screen.dart';
-
-enum LibrarySortMode {
-  recentlyAdded('Adicionados recentemente'),
-  title('Título (A–Z)'),
-  author('Autor (A–Z)');
-
-  const LibrarySortMode(this.label);
-  final String label;
-}
-
-enum LibraryViewMode { grid, list }
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -29,9 +19,6 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchController = TextEditingController();
-  String _query = '';
-  LibrarySortMode _sortMode = LibrarySortMode.recentlyAdded;
-  LibraryViewMode _viewMode = LibraryViewMode.grid;
 
   @override
   void dispose() {
@@ -104,7 +91,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       });
     }
 
-    final filtered = _applyFilters(state.books);
+    final ui = ref.watch(libraryUiProvider);
+    final uiNotifier = ref.read(libraryUiProvider.notifier);
+
+    // Keep the controller in sync if the UI state was reset externally.
+    if (_searchController.text != ui.query) {
+      _searchController.value = TextEditingValue(
+        text: ui.query,
+        selection: TextSelection.collapsed(offset: ui.query.length),
+      );
+    }
+
+    final filtered = _applyFilters(state.books, ui);
 
     return RefreshIndicator(
       onRefresh: () async => vm.reload(),
@@ -114,18 +112,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             child: _Header(
               count: state.books.length,
               filteredCount: filtered.length,
-              hasFilter: _query.isNotEmpty,
+              hasFilter: ui.query.isNotEmpty,
             ),
           ),
           SliverToBoxAdapter(
-            child: _Toolbar(
-              controller: _searchController,
-              query: _query,
-              onQueryChanged: (q) => setState(() => _query = q),
-              sortMode: _sortMode,
-              onSortChanged: (m) => setState(() => _sortMode = m),
-              viewMode: _viewMode,
-              onViewChanged: (v) => setState(() => _viewMode = v),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: ui.searchVisible
+                  ? _Toolbar(
+                      controller: _searchController,
+                      query: ui.query,
+                      onQueryChanged: uiNotifier.setQuery,
+                      sortMode: ui.sortMode,
+                      onSortChanged: uiNotifier.setSortMode,
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
           ),
           if (state.isEmpty)
@@ -136,10 +139,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           else if (filtered.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: _EmptySearch(query: _query),
+              child: _EmptySearch(query: ui.query),
             )
           else
-            ..._buildItems(context, filtered, vm),
+            ..._buildItems(context, filtered, vm, ui.viewMode),
           // FAB clearance
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
@@ -147,16 +150,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  List<BookEntry> _applyFilters(List<BookEntry> input) {
+  List<BookEntry> _applyFilters(
+    List<BookEntry> input,
+    LibraryUiState ui,
+  ) {
     var list = [...input];
-    if (_query.isNotEmpty) {
-      final q = _query.toLowerCase();
+    if (ui.query.isNotEmpty) {
+      final q = ui.query.toLowerCase();
       list = list.where((b) {
         return b.title.toLowerCase().contains(q) ||
             (b.author ?? '').toLowerCase().contains(q);
       }).toList();
     }
-    switch (_sortMode) {
+    switch (ui.sortMode) {
       case LibrarySortMode.recentlyAdded:
         list.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
       case LibrarySortMode.title:
@@ -174,11 +180,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     BuildContext context,
     List<BookEntry> books,
     dynamic vm,
+    LibraryViewMode viewMode,
   ) {
-    if (_viewMode == LibraryViewMode.grid) {
+    if (viewMode == LibraryViewMode.grid) {
       return [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -200,7 +207,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
     return [
       SliverPadding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (_, i) => _ListItem(
@@ -269,7 +276,7 @@ class _Header extends StatelessWidget {
             ? 'Nenhum livro ainda'
             : '$count ${count == 1 ? "livro" : "livros"}';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Text(
         subtitle,
         style: TextStyle(
@@ -288,8 +295,6 @@ class _Toolbar extends StatelessWidget {
     required this.onQueryChanged,
     required this.sortMode,
     required this.onSortChanged,
-    required this.viewMode,
-    required this.onViewChanged,
   });
 
   final TextEditingController controller;
@@ -297,14 +302,12 @@ class _Toolbar extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final LibrarySortMode sortMode;
   final ValueChanged<LibrarySortMode> onSortChanged;
-  final LibraryViewMode viewMode;
-  final ValueChanged<LibraryViewMode> onViewChanged;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Row(
         children: [
           Expanded(
@@ -363,20 +366,6 @@ class _Toolbar extends StatelessWidget {
               if (selected != null) onSortChanged(selected);
             },
           ),
-          const SizedBox(width: 6),
-          _IconAffordance(
-            icon: viewMode == LibraryViewMode.grid
-                ? Icons.view_list_rounded
-                : Icons.grid_view_rounded,
-            tooltip: viewMode == LibraryViewMode.grid
-                ? 'Visualizar em lista'
-                : 'Visualizar em grade',
-            onTap: () => onViewChanged(
-              viewMode == LibraryViewMode.grid
-                  ? LibraryViewMode.list
-                  : LibraryViewMode.grid,
-            ),
-          ),
         ],
       ),
     );
@@ -432,7 +421,7 @@ class _SortSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 'ORDENAR POR',
                 style: TextStyle(
@@ -556,30 +545,39 @@ class _ListItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final progressAsync = ref.watch(bookProgressProvider(entry.id));
-    final progress = _progressFor(progressAsync.value, entry);
+    final bookProgress = progressAsync.value;
+    final progress = _progressFor(bookProgress, entry);
+    final chapterCount = entry.chapterCount ?? 0;
+    final currentChapter =
+        ((bookProgress?.chapterIndex ?? 0) + 1).clamp(0, chapterCount);
+    final isCompleted = progress >= 1;
+    final isReading = progress > 0 && !isCompleted;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
         child: InkWell(
           onTap: onOpen,
           onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: scheme.outline),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 56,
-                  height: 84,
+                  width: 64,
+                  height: 96,
                   child: _CoverImage(entry: entry),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,56 +589,155 @@ class _ListItem extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         softWrap: true,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurface,
-                          height: 1.2,
+                          height: 1.25,
+                          letterSpacing: -0.1,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         entry.author ?? 'Autor desconhecido',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         softWrap: false,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           color: scheme.onSurfaceVariant,
+                          height: 1.2,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 3,
-                          backgroundColor: scheme.outline,
-                          valueColor:
-                              AlwaysStoppedAnimation(scheme.primary),
-                        ),
+                      _StatusRow(
+                        scheme: scheme,
+                        isCompleted: isCompleted,
+                        isReading: isReading,
+                        progress: progress,
+                        currentChapter: currentChapter,
+                        chapterCount: chapterCount,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        progress >= 1
-                            ? 'Concluído'
-                            : progress > 0
-                                ? '${(progress * 100).round()}% lido'
-                                : 'Não lido',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
+                      if (isReading) ...[
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 4,
+                            backgroundColor:
+                                scheme.outline.withValues(alpha: 0.6),
+                            valueColor:
+                                AlwaysStoppedAnimation(scheme.primary),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded,
-                    color: scheme.onSurfaceVariant),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StatusRow extends StatelessWidget {
+  const _StatusRow({
+    required this.scheme,
+    required this.isCompleted,
+    required this.isReading,
+    required this.progress,
+    required this.currentChapter,
+    required this.chapterCount,
+  });
+
+  final ColorScheme scheme;
+  final bool isCompleted;
+  final bool isReading;
+  final double progress;
+  final int currentChapter;
+  final int chapterCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isCompleted) {
+      return _StatusBadge(
+        icon: Icons.check_circle_rounded,
+        label: 'Concluído',
+        color: scheme.tertiary,
+      );
+    }
+    if (isReading) {
+      return Row(
+        children: [
+          _StatusBadge(
+            icon: Icons.menu_book_rounded,
+            label: '${(progress * 100).round()}%',
+            color: scheme.primary,
+          ),
+          const SizedBox(width: 8),
+          if (chapterCount > 0)
+            Flexible(
+              child: Text(
+                'cap. $currentChapter de $chapterCount',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+    return _StatusBadge(
+      icon: Icons.fiber_new_rounded,
+      label: chapterCount > 0
+          ? '$chapterCount ${chapterCount == 1 ? "capítulo" : "capítulos"}'
+          : 'Não iniciado',
+      color: scheme.onSurfaceVariant,
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
       ),
     );
   }

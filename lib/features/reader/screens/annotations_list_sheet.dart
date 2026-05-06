@@ -55,7 +55,7 @@ class _AnnotationsListSheet extends ConsumerWidget{
     final highlights = highlightsAsync.value ?? const <Highlight>[];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -376,7 +376,7 @@ class _EmptyState extends ConsumerWidget{
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

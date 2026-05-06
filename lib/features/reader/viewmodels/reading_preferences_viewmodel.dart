@@ -28,6 +28,8 @@ class ReadingPreferencesViewModel
     double? lineHeight,
     double? letterSpacing,
     double? paragraphSpacing,
+    ReadingTextAlign? textAlign,
+    bool? centerHeadings,
   }) async {
     final current = state.value ?? ReadingPreferences.defaults;
     final next = current.copyWith(
@@ -37,6 +39,8 @@ class ReadingPreferencesViewModel
       lineHeight: lineHeight,
       letterSpacing: letterSpacing,
       paragraphSpacing: paragraphSpacing,
+      textAlign: textAlign,
+      centerHeadings: centerHeadings,
     );
     await save(next);
   }

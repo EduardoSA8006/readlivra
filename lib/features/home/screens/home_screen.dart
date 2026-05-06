@@ -40,11 +40,9 @@ class _ContinueReadingSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(continueReadingProvider);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: async.when(
-        loading: () => const _ContinuePlaceholder(
-          message: 'Carregando…',
-        ),
+        loading: () => const _ContinuePlaceholder(message: 'Carregando…'),
         error: (_, _) => const _ContinuePlaceholder(
           message: 'Não foi possível carregar o último livro.',
         ),
@@ -64,7 +62,7 @@ class _ContinueEmpty extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
@@ -72,8 +70,11 @@ class _ContinueEmpty extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.menu_book_rounded,
-              size: 32, color: scheme.onSurfaceVariant),
+          Icon(
+            Icons.menu_book_rounded,
+            size: 32,
+            color: scheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -109,16 +110,13 @@ class _ContinuePlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: scheme.outline),
       ),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }
@@ -158,11 +156,11 @@ class _ContinueReadingCard extends StatelessWidget {
                   Text(
                     'CONTINUE LENDO',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
-                          fontSize: 10.5,
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: Colors.white70,
+                      fontSize: 10.5,
+                      letterSpacing: 1.0,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -183,8 +181,7 @@ class _ContinueReadingCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     softWrap: false,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   const SizedBox(height: 14),
                   ClipRRect(
@@ -194,14 +191,14 @@ class _ContinueReadingCard extends StatelessWidget {
                       minHeight: 6,
                       backgroundColor: Colors.white24,
                       valueColor: const AlwaysStoppedAnimation(
-                          AppPalette.secondary),
+                        AppPalette.secondary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '${(info.progress * 100).round()}% concluído',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
@@ -231,16 +228,13 @@ class _QuickActions extends ConsumerWidget {
       if (entry == null || !context.mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => ReaderScreen(
-            bookId: entry.id,
-            path: entry.filePath,
-          ),
+          builder: (_) => ReaderScreen(bookId: entry.id, path: entry.filePath),
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
@@ -252,10 +246,7 @@ class _QuickActions extends ConsumerWidget {
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: _QuickAction(
-              icon: Icons.cloud_outlined,
-              label: 'Nuvem',
-            ),
+            child: _QuickAction(icon: Icons.cloud_outlined, label: 'Nuvem'),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -271,11 +262,7 @@ class _QuickActions extends ConsumerWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const _QuickAction({required this.icon, required this.label, this.onTap});
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
@@ -331,25 +318,26 @@ class _RecentSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Adicionados recentemente',
-                  style: Theme.of(context).textTheme.titleLarge),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Adicionados recentemente',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
             const SizedBox(height: 14),
             SizedBox(
               height: 170,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: books.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (_, i) {
                   final book = books[i];
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            BookDetailScreen(bookId: book.id),
+                        builder: (_) => BookDetailScreen(bookId: book.id),
                       ),
                     ),
                     child: _SmallCover(entry: book, width: 110, height: 160),

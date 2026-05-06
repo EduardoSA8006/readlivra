@@ -36,6 +36,24 @@ enum ReadingTheme {
   }
 }
 
+enum ReadingTextAlign {
+  left('Esquerda', 'left'),
+  center('Centro', 'center'),
+  right('Direita', 'right'),
+  justify('Justificado', 'justify');
+
+  const ReadingTextAlign(this.label, this.id);
+  final String label;
+  final String id;
+
+  static ReadingTextAlign fromId(String? id) {
+    for (final a in ReadingTextAlign.values) {
+      if (a.id == id) return a;
+    }
+    return ReadingTextAlign.left;
+  }
+}
+
 class ReadingPreferences {
   const ReadingPreferences({
     required this.theme,
@@ -44,6 +62,8 @@ class ReadingPreferences {
     required this.lineHeight,
     required this.letterSpacing,
     required this.paragraphSpacing,
+    required this.textAlign,
+    required this.centerHeadings,
   });
 
   final ReadingTheme theme;
@@ -61,6 +81,12 @@ class ReadingPreferences {
   /// Bottom margin applied to each `<p>` block, in logical pixels.
   final double paragraphSpacing;
 
+  /// Horizontal alignment applied to body paragraphs.
+  final ReadingTextAlign textAlign;
+
+  /// When true, headings (h1–h6) stay centered regardless of [textAlign].
+  final bool centerHeadings;
+
   static const defaults = ReadingPreferences(
     theme: ReadingTheme.light,
     font: ReadingFont.systemSerif,
@@ -68,6 +94,8 @@ class ReadingPreferences {
     lineHeight: 1.55,
     letterSpacing: 0,
     paragraphSpacing: 14,
+    textAlign: ReadingTextAlign.left,
+    centerHeadings: true,
   );
 
   // Sane bounds the UI uses to clamp slider values.
@@ -83,6 +111,8 @@ class ReadingPreferences {
     double? lineHeight,
     double? letterSpacing,
     double? paragraphSpacing,
+    ReadingTextAlign? textAlign,
+    bool? centerHeadings,
   }) =>
       ReadingPreferences(
         theme: theme ?? this.theme,
@@ -91,6 +121,8 @@ class ReadingPreferences {
         lineHeight: lineHeight ?? this.lineHeight,
         letterSpacing: letterSpacing ?? this.letterSpacing,
         paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
+        textAlign: textAlign ?? this.textAlign,
+        centerHeadings: centerHeadings ?? this.centerHeadings,
       );
 
   Map<String, dynamic> toJson() => {
@@ -100,6 +132,8 @@ class ReadingPreferences {
         'lineHeight': lineHeight,
         'letterSpacing': letterSpacing,
         'paragraphSpacing': paragraphSpacing,
+        'textAlign': textAlign.id,
+        'centerHeadings': centerHeadings,
       };
 
   factory ReadingPreferences.fromJson(Map<String, dynamic> json) {
@@ -117,6 +151,9 @@ class ReadingPreferences {
       paragraphSpacing: ((json['paragraphSpacing'] as num?)?.toDouble() ??
               defaults.paragraphSpacing)
           .clamp(paragraphSpacingRange.min, paragraphSpacingRange.max),
+      textAlign: ReadingTextAlign.fromId(json['textAlign'] as String?),
+      centerHeadings:
+          (json['centerHeadings'] as bool?) ?? defaults.centerHeadings,
     );
   }
 }
