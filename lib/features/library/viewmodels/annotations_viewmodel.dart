@@ -89,6 +89,33 @@ class AnnotationsViewModel extends Notifier<void> {
     ref.invalidate(highlightsProvider(bookId));
   }
 
+  /// Replaces the colour of an existing highlight by re-creating it. The
+  /// repository has no in-place update, so we delete then add with the same
+  /// offsets/snippet — the id changes, but every other field is preserved.
+  Future<void> recolorHighlight({
+    required String bookId,
+    required Highlight original,
+    required HighlightColor color,
+  }) async {
+    if (original.color == color) return;
+    final repo = await _repo();
+    await repo.removeHighlight(original.id);
+    await repo.addHighlight(
+      Highlight(
+        id: _newId(),
+        bookId: original.bookId,
+        chapterIndex: original.chapterIndex,
+        blockIndex: original.blockIndex,
+        snippet: original.snippet,
+        color: color,
+        createdAt: original.createdAt,
+        startOffset: original.startOffset,
+        endOffset: original.endOffset,
+      ),
+    );
+    ref.invalidate(highlightsProvider(bookId));
+  }
+
   Future<void> updateBookmarkNote(
     String bookId,
     String id,

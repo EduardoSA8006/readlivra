@@ -551,7 +551,7 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       // Don't keep off-screen blocks alive — let the engine free their
       // RenderObjects so memory stays bounded on long chapters.
       addAutomaticKeepAlives: false,
@@ -681,24 +681,7 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
           onSelectionChanged: (content) {
             _lastSelected = content?.plainText;
           },
-          contextMenuBuilder: (context, state) {
-            final selected = _lastSelected ?? '';
-            final canHighlight = selected.trim().isNotEmpty;
-            return AdaptiveTextSelectionToolbar.buttonItems(
-              anchors: state.contextMenuAnchors,
-              buttonItems: [
-                if (canHighlight)
-                  ContextMenuButtonItem(
-                    label: 'Destacar',
-                    onPressed: () {
-                      state.hideToolbar();
-                      _persistHighlight(selected);
-                    },
-                  ),
-                ...state.contextMenuButtonItems,
-              ],
-            );
-          },
+          contextMenuBuilder: _buildHighlightToolbar,
           child: body,
         );
       }
@@ -777,35 +760,103 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
       onSelectionChanged: (content) {
         _lastSelected = content?.plainText;
       },
-      contextMenuBuilder: (context, state) {
-        final selected = _lastSelected ?? '';
-        final canHighlight = selected.trim().isNotEmpty;
-        return AdaptiveTextSelectionToolbar.buttonItems(
-          anchors: state.contextMenuAnchors,
-          buttonItems: [
-            if (canHighlight)
-              ContextMenuButtonItem(
-                label: 'Destacar',
-                onPressed: () {
-                  state.hideToolbar();
-                  _persistHighlight(selected);
-                },
-              ),
-            ...state.contextMenuButtonItems,
-          ],
-        );
-      },
+      contextMenuBuilder: _buildHighlightToolbar,
       child: content,
     );
   }
 
-  void _persistHighlight(String selectedText) {
+  Widget _buildHighlightToolbar(
+    BuildContext context,
+    SelectableRegionState state,
+  ) {
+    final selected = (_lastSelected ?? '').trim();
+    final bookId = widget.bookId;
+
+    int start = -1;
+    int end = -1;
+    final overlapping = <Highlight>[];
+    if (selected.isNotEmpty && bookId != null) {
+      final plain = blockPlainText(widget.html);
+      start = plain.indexOf(selected);
+      end = start < 0 ? -1 : start + selected.length;
+      if (start >= 0) {
+        for (final h in widget.highlights) {
+          if (h.isWholeBlock) continue;
+          if (h.startOffset! < end && h.endOffset! > start) {
+            overlapping.add(h);
+          }
+        }
+      }
+    }
+
+    final canHighlight = selected.isNotEmpty && bookId != null && start >= 0;
+    final hasOverlap = overlapping.isNotEmpty;
+
+    if (!canHighlight) {
+      return AdaptiveTextSelectionToolbar.buttonItems(
+        anchors: state.contextMenuAnchors,
+        buttonItems: state.contextMenuButtonItems,
+      );
+    }
+
+    final copyItem = state.contextMenuButtonItems.firstWhere(
+      (b) => b.type == ContextMenuButtonType.copy,
+      orElse: () => ContextMenuButtonItem(onPressed: () {}, label: 'Copiar'),
+    );
+
+    return AdaptiveTextSelectionToolbar(
+      anchors: state.contextMenuAnchors,
+      children: [
+        for (final color in HighlightColor.values)
+          _ColorSwatch(
+            color: color,
+            active: hasOverlap && overlapping.first.color == color,
+            onTap: () {
+              state.hideToolbar();
+              if (hasOverlap) {
+                ref
+                    .read(annotationsViewModelProvider.notifier)
+                    .recolorHighlight(
+                      bookId: bookId,
+                      original: overlapping.first,
+                      color: color,
+                    );
+              } else {
+                _persistHighlight(selected, color, start, end);
+              }
+            },
+          ),
+        if (hasOverlap)
+          _ToolbarIcon(
+            icon: Icons.delete_outline_rounded,
+            tooltip: 'Remover destaque',
+            onTap: () {
+              state.hideToolbar();
+              for (final h in overlapping) {
+                ref
+                    .read(annotationsViewModelProvider.notifier)
+                    .removeHighlight(bookId, h.id);
+              }
+            },
+          ),
+        if (copyItem.onPressed != null)
+          _ToolbarIcon(
+            icon: Icons.copy_rounded,
+            tooltip: 'Copiar',
+            onTap: copyItem.onPressed!,
+          ),
+      ],
+    );
+  }
+
+  void _persistHighlight(
+    String selectedText,
+    HighlightColor color,
+    int start,
+    int end,
+  ) {
     final id = widget.bookId;
     if (id == null) return;
-    final plainText = blockPlainText(widget.html);
-    final start = plainText.indexOf(selectedText);
-    if (start < 0) return;
-    final end = start + selectedText.length;
     final snippet = selectedText.length > 160
         ? '${selectedText.substring(0, 160).trimRight()}…'
         : selectedText;
@@ -816,9 +867,76 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
           chapterIndex: widget.chapterIndex,
           blockIndex: widget.blockIndex,
           snippet: snippet,
+          color: color,
           startOffset: start,
           endOffset: end,
         );
+  }
+}
+
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({
+    required this.color,
+    required this.active,
+    required this.onTap,
+  });
+
+  final HighlightColor color;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: color.label,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: Color(color.background),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? scheme.primary : Color(color.accent),
+                width: active ? 2.5 : 1.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarIcon extends StatelessWidget {
+  const _ToolbarIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, size: 20, color: scheme.onSurface),
+        ),
+      ),
+    );
   }
 }
 
