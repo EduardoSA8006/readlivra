@@ -3,14 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/routes.dart';
+import '../../../core/models/book_entry.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 import '../../../core/theme/app_palette.dart';
-import '../../reader/screens/reader_screen.dart';
-import '../data/models/book_entry.dart';
-import '../data/models/bookmark.dart';
-import '../data/models/highlight.dart';
 import '../providers.dart';
 import '../viewmodels/book_detail_state.dart';
-import 'book_toc_screen.dart';
 
 class BookDetailScreen extends ConsumerWidget {
   const BookDetailScreen({super.key, required this.bookId});
@@ -53,14 +52,12 @@ class _DetailContent extends ConsumerWidget {
       double? anchorAlignment,
     }) async {
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ReaderScreen(
-            bookId: data.book.id,
-            path: data.book.filePath,
-            initialChapter: chapter,
-            initialAnchorBlock: anchorBlock,
-            initialAnchorAlignment: anchorAlignment,
-          ),
+        AppRoutes.reader(
+          bookId: data.book.id,
+          path: data.book.filePath,
+          initialChapter: chapter,
+          initialAnchorBlock: anchorBlock,
+          initialAnchorAlignment: anchorAlignment,
         ),
       );
       ref.invalidate(bookDetailViewModelProvider(bookId));
@@ -122,15 +119,13 @@ class _DetailContent extends ConsumerWidget {
               _TocLink(
                 data: data,
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => BookTocScreen(
-                      bookId: data.book.id,
-                      filePath: data.book.filePath,
-                      bookTitle: data.book.title,
-                      author: data.book.author,
-                      ebook: data.ebook,
-                      currentChapter: data.currentChapter,
-                    ),
+                  AppRoutes.bookToc(
+                    bookId: data.book.id,
+                    filePath: data.book.filePath,
+                    bookTitle: data.book.title,
+                    author: data.book.author,
+                    ebook: data.ebook,
+                    currentChapter: data.currentChapter,
                   ),
                 ),
               ),

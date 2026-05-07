@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
-import 'models/book_progress.dart';
+import '../../../core/models/book_progress.dart';
 import 'progress_repository.dart';
 
 class SharedPrefsProgressRepository implements ProgressRepository {

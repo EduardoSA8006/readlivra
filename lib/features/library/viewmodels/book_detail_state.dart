@@ -1,6 +1,6 @@
-import '../../reader/data/models/ebook.dart';
-import '../data/models/book_entry.dart';
-import '../data/models/book_progress.dart';
+import '../../../core/models/ebook.dart';
+import '../../../core/models/book_entry.dart';
+import '../../../core/models/book_progress.dart';
 
 class BookDetailData {
   const BookDetailData({

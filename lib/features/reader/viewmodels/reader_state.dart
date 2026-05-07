@@ -1,6 +1,6 @@
 import '../../../core/result/app_exceptions.dart';
-import '../data/models/ebook.dart';
-import '../data/models/ebook_chapter.dart';
+import '../../../core/models/ebook.dart';
+import '../../../core/models/ebook_chapter.dart';
 
 class ReaderAnchor {
   const ReaderAnchor({required this.blockIndex, required this.alignment});

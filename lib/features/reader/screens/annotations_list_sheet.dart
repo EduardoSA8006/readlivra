@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../library/data/models/bookmark.dart';
-import '../../library/data/models/highlight.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 import '../../library/providers.dart';
 import '../providers.dart';
 import '../viewmodels/reader_state.dart';

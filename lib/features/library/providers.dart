@@ -6,10 +6,10 @@ import 'data/annotations_repository_impl.dart';
 import 'data/import_service.dart';
 import 'data/library_repository.dart';
 import 'data/library_repository_impl.dart';
-import 'data/models/book_entry.dart';
-import 'data/models/book_progress.dart';
-import 'data/models/bookmark.dart';
-import 'data/models/highlight.dart';
+import '../../core/models/book_entry.dart';
+import '../../core/models/book_progress.dart';
+import '../../core/models/bookmark.dart';
+import '../../core/models/highlight.dart';
 import 'data/progress_repository.dart';
 import 'data/progress_repository_impl.dart';
 import 'viewmodels/annotations_viewmodel.dart';
@@ -101,6 +101,26 @@ class ContinueReadingInfo {
     return ((chapterIndex + 1) / count).clamp(0.0, 1.0);
   }
 }
+
+/// Books the user has actually opened, ordered from most-recent to oldest
+/// reading session. Books that were imported but never opened are omitted.
+final recentlyReadProvider = FutureProvider<List<BookEntry>>((ref) async {
+  ref.watch(libraryViewModelProvider);
+  final state = ref.watch(libraryViewModelProvider).value;
+  if (state is! LibraryLoaded || state.books.isEmpty) return const [];
+
+  final progress = await ref.watch(progressRepositoryProvider.future);
+
+  final stamped = <(BookEntry, DateTime)>[];
+  for (final book in state.books) {
+    final result = await progress.getProgress(book.id);
+    final readAt = result.valueOrNull?.updatedAt;
+    if (readAt != null) stamped.add((book, readAt));
+  }
+
+  stamped.sort((a, b) => b.$2.compareTo(a.$2));
+  return [for (final s in stamped) s.$1];
+});
 
 final continueReadingProvider =
     FutureProvider<ContinueReadingInfo?>((ref) async {

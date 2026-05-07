@@ -1,5 +1,5 @@
 import '../../../core/result/result.dart';
-import 'models/book_entry.dart';
+import '../../../core/models/book_entry.dart';
 
 abstract class LibraryRepository {
   Future<Result<List<BookEntry>>> listBooks();

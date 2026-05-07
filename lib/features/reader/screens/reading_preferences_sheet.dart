@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/reader_palette.dart';
+import '../data/reader_palette.dart';
 import '../data/font_resolver.dart';
 import '../data/models/reading_preferences.dart';
 import '../providers.dart';
 
 Future<void> showReadingPreferencesSheet(BuildContext context) {
-  final palette =
-      ProviderScope.containerOf(context).read(readerPaletteProvider);
+  final palette = ProviderScope.containerOf(
+    context,
+  ).read(readerPaletteProvider);
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: palette.surface,
@@ -21,7 +22,7 @@ Future<void> showReadingPreferencesSheet(BuildContext context) {
   );
 }
 
-class _ReadingPreferencesSheet extends ConsumerWidget{
+class _ReadingPreferencesSheet extends ConsumerWidget {
   const _ReadingPreferencesSheet();
 
   @override
@@ -34,96 +35,98 @@ class _ReadingPreferencesSheet extends ConsumerWidget{
 
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Preferências de leitura',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Preferências de leitura',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () => vm.resetToDefaults(),
-                  child: const Text('Restaurar padrão'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const _SectionLabel('Tema'),
-            const SizedBox(height: 8),
-            _ThemePicker(
-              current: prefs.theme,
-              onPick: (t) => vm.patch(theme: t),
-            ),
-            const SizedBox(height: 18),
-            const _SectionLabel('Fonte'),
-            const SizedBox(height: 8),
-            _FontPicker(
-              current: prefs.font,
-              onPick: (f) => vm.patch(font: f),
-            ),
-            const SizedBox(height: 18),
-            _PreviewBlock(prefs: prefs),
-            const SizedBox(height: 18),
-            _SliderRow(
-              icon: Icons.format_size_rounded,
-              label: 'Tamanho',
-              value: prefs.fontSize,
-              min: ReadingPreferences.fontSizeRange.min,
-              max: ReadingPreferences.fontSizeRange.max,
-              suffix: '${prefs.fontSize.toStringAsFixed(0)} pt',
-              onChanged: (v) => vm.patch(fontSize: v),
-            ),
-            _SliderRow(
-              icon: Icons.density_medium_rounded,
-              label: 'Espaçamento das linhas',
-              value: prefs.lineHeight,
-              min: ReadingPreferences.lineHeightRange.min,
-              max: ReadingPreferences.lineHeightRange.max,
-              suffix: prefs.lineHeight.toStringAsFixed(2),
-              onChanged: (v) => vm.patch(lineHeight: v),
-            ),
-            _SliderRow(
-              icon: Icons.swap_horiz_rounded,
-              label: 'Espaçamento das letras',
-              value: prefs.letterSpacing,
-              min: ReadingPreferences.letterSpacingRange.min,
-              max: ReadingPreferences.letterSpacingRange.max,
-              suffix: '${prefs.letterSpacing.toStringAsFixed(1)} px',
-              onChanged: (v) => vm.patch(letterSpacing: v),
-            ),
-            _SliderRow(
-              icon: Icons.format_line_spacing_rounded,
-              label: 'Espaçamento dos parágrafos',
-              value: prefs.paragraphSpacing,
-              min: ReadingPreferences.paragraphSpacingRange.min,
-              max: ReadingPreferences.paragraphSpacingRange.max,
-              suffix: '${prefs.paragraphSpacing.toStringAsFixed(0)} px',
-              onChanged: (v) => vm.patch(paragraphSpacing: v),
-            ),
-            const SizedBox(height: 18),
-            const _SectionLabel('Alinhamento'),
-            const SizedBox(height: 8),
-            _AlignPicker(
-              current: prefs.textAlign,
-              onPick: (a) => vm.patch(textAlign: a),
-            ),
-            const SizedBox(height: 8),
-            _CenterHeadingsToggle(
-              value: prefs.centerHeadings,
-              onChanged: (v) => vm.patch(centerHeadings: v),
-            ),
-          ],
+                  TextButton(
+                    onPressed: () => vm.resetToDefaults(),
+                    child: const Text('Restaurar padrão'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const _SectionLabel('Tema'),
+              const SizedBox(height: 8),
+              _ThemePicker(
+                current: prefs.theme,
+                onPick: (t) => vm.patch(theme: t),
+              ),
+              const SizedBox(height: 18),
+              const _SectionLabel('Fonte'),
+              const SizedBox(height: 8),
+              _FontPicker(
+                current: prefs.font,
+                onPick: (f) => vm.patch(font: f),
+              ),
+              const SizedBox(height: 18),
+              _PreviewBlock(prefs: prefs),
+              const SizedBox(height: 18),
+              _SliderRow(
+                icon: Icons.format_size_rounded,
+                label: 'Tamanho',
+                value: prefs.fontSize,
+                min: ReadingPreferences.fontSizeRange.min,
+                max: ReadingPreferences.fontSizeRange.max,
+                suffix: '${prefs.fontSize.toStringAsFixed(0)} pt',
+                onChanged: (v) => vm.patch(fontSize: v),
+              ),
+              _SliderRow(
+                icon: Icons.density_medium_rounded,
+                label: 'Espaçamento das linhas',
+                value: prefs.lineHeight,
+                min: ReadingPreferences.lineHeightRange.min,
+                max: ReadingPreferences.lineHeightRange.max,
+                suffix: prefs.lineHeight.toStringAsFixed(2),
+                onChanged: (v) => vm.patch(lineHeight: v),
+              ),
+              _SliderRow(
+                icon: Icons.swap_horiz_rounded,
+                label: 'Espaçamento das letras',
+                value: prefs.letterSpacing,
+                min: ReadingPreferences.letterSpacingRange.min,
+                max: ReadingPreferences.letterSpacingRange.max,
+                suffix: '${prefs.letterSpacing.toStringAsFixed(1)} px',
+                onChanged: (v) => vm.patch(letterSpacing: v),
+              ),
+              _SliderRow(
+                icon: Icons.format_line_spacing_rounded,
+                label: 'Espaçamento dos parágrafos',
+                value: prefs.paragraphSpacing,
+                min: ReadingPreferences.paragraphSpacingRange.min,
+                max: ReadingPreferences.paragraphSpacingRange.max,
+                suffix: '${prefs.paragraphSpacing.toStringAsFixed(0)} px',
+                onChanged: (v) => vm.patch(paragraphSpacing: v),
+              ),
+              const SizedBox(height: 18),
+              const _SectionLabel('Alinhamento'),
+              const SizedBox(height: 8),
+              _AlignPicker(
+                current: prefs.textAlign,
+                onPick: (a) => vm.patch(textAlign: a),
+              ),
+              const SizedBox(height: 8),
+              _CenterHeadingsToggle(
+                value: prefs.centerHeadings,
+                onChanged: (v) => vm.patch(centerHeadings: v),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -221,11 +224,7 @@ class _CenterHeadingsToggle extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Row(
           children: [
-            Icon(
-              Icons.title_rounded,
-              size: 18,
-              color: palette.textSecondary,
-            ),
+            Icon(Icons.title_rounded, size: 18, color: palette.textSecondary),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -262,7 +261,7 @@ class _CenterHeadingsToggle extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends ConsumerWidget{
+class _SectionLabel extends ConsumerWidget {
   const _SectionLabel(this.label);
   final String label;
 
@@ -282,7 +281,7 @@ class _SectionLabel extends ConsumerWidget{
   }
 }
 
-class _FontPicker extends ConsumerWidget{
+class _FontPicker extends ConsumerWidget {
   const _FontPicker({required this.current, required this.onPick});
   final ReadingFont current;
   final ValueChanged<ReadingFont> onPick;
@@ -332,7 +331,7 @@ class _FontPicker extends ConsumerWidget{
   }
 }
 
-class _PreviewBlock extends ConsumerWidget{
+class _PreviewBlock extends ConsumerWidget {
   const _PreviewBlock({required this.prefs});
   final ReadingPreferences prefs;
 
@@ -341,8 +340,7 @@ class _PreviewBlock extends ConsumerWidget{
     final palette = ref.watch(readerPaletteProvider);
 
     final bodyAlign = _toFlutterAlign(prefs.textAlign);
-    final headingAlign =
-        prefs.centerHeadings ? TextAlign.center : bodyAlign;
+    final headingAlign = prefs.centerHeadings ? TextAlign.center : bodyAlign;
 
     return Container(
       width: double.infinity,
@@ -398,7 +396,7 @@ TextAlign _toFlutterAlign(ReadingTextAlign value) {
   }
 }
 
-class _SliderRow extends ConsumerWidget{
+class _SliderRow extends ConsumerWidget {
   const _SliderRow({
     required this.icon,
     required this.label,
@@ -455,8 +453,7 @@ class _SliderRow extends ConsumerWidget{
               activeTrackColor: palette.textPrimary,
               thumbColor: palette.textPrimary,
               inactiveTrackColor: const Color(0xFFEDE7DD),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 16),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
               trackHeight: 3,
             ),
             child: Slider(

@@ -3,15 +3,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app/main_shell.dart';
+import 'core/storage/storage_providers.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_repository.dart';
 import 'core/theme/theme_providers.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   // Fonts are bundled under assets/google_fonts/ — refuse runtime HTTP
   // fetching so the app behaves identically online and offline.
   GoogleFonts.config.allowRuntimeFetching = false;
-  runApp(const ProviderScope(child: ReadlivraApp()));
+
+  // Pre-warm storage providers so the first frame can render the cached
+  // library synchronously instead of flashing a loading spinner while the
+  // shared_preferences and path_provider plugins boot.
+  final container = ProviderContainer();
+  await Future.wait([
+    container.read(sharedPreferencesProvider.future),
+    container.read(booksDirectoryProvider.future),
+  ]);
+
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: const ReadlivraApp(),
+    ),
+  );
 }
 
 class ReadlivraApp extends ConsumerWidget {

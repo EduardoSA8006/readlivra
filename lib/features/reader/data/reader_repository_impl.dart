@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:epubx/epubx.dart' as epubx;
 
+import '../../../core/models/ebook.dart';
+import '../../../core/models/ebook_chapter.dart';
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
-import 'chapter_content_source.dart';
-import 'ebook_image_source.dart';
-import 'models/ebook.dart';
-import 'models/ebook_chapter.dart';
+import 'lazy_archive_chapter_source.dart';
+import 'lazy_archive_image_source.dart';
 import 'reader_repository.dart';
 
 class EpubReaderRepository implements ReaderRepository {
@@ -24,16 +24,14 @@ class EpubReaderRepository implements ReaderRepository {
         );
       }
 
-      final lower = path.toLowerCase();
-      if (!lower.endsWith('.epub')) {
+      if (!path.toLowerCase().endsWith('.epub')) {
         return const Err(
           UnsupportedFormatException(
-              'Por enquanto só arquivos .epub são suportados.'),
+            'Por enquanto só arquivos .epub são suportados.',
+          ),
         );
       }
 
-      // Use the lazy `openBook` API to list the spine + metadata without
-      // materialising every chapter's HTML up-front.
       final eagerBytes = await file.readAsBytes();
       final bookRef = await epubx.EpubReader.openBook(eagerBytes);
 
@@ -43,24 +41,24 @@ class EpubReaderRepository implements ReaderRepository {
       final author = (bookRef.Author ?? '').trim().isEmpty
           ? null
           : bookRef.Author!.trim();
-
-      // Capture the metadata we need (title + path) and let the bookRef
-      // (along with the in-memory bytes it owns) go out of scope.
-      final chapterEntries =
-          _flattenAndPrune(await bookRef.getChapters());
-
       final imagePaths = bookRef.Content?.Images?.keys.toSet();
 
-      // Open a file-backed archive — bytes are fetched on demand from disk.
+      // File-backed archive: bytes are fetched on demand from disk.
       final stream = InputFileStream(path);
       final lazyArchive = ZipDecoder().decodeBuffer(stream);
+      final archiveIndex = ArchiveIndex.build(lazyArchive);
+
+      final chapterEntries = await _buildChaptersFromSpine(
+        bookRef,
+        archiveIndex,
+      );
 
       final chapters = chapterEntries
           .map(
             (entry) => EbookChapter(
               title: entry.title,
               source: LazyArchiveChapterSource(
-                archive: lazyArchive,
+                index: archiveIndex,
                 path: entry.path,
               ),
             ),
@@ -69,12 +67,11 @@ class EpubReaderRepository implements ReaderRepository {
 
       if (chapters.isEmpty) {
         stream.closeSync();
-        return const Err(
-          ParseException('EPUB não contém capítulos legíveis.'),
-        );
+        return const Err(ParseException('EPUB não contém capítulos legíveis.'));
       }
 
-      final paths = imagePaths ??
+      final paths =
+          imagePaths ??
           lazyArchive.files
               .where((f) => f.isFile && _looksLikeImage(f.name))
               .map((f) => f.name)
@@ -86,7 +83,7 @@ class EpubReaderRepository implements ReaderRepository {
           author: author,
           chapters: chapters,
           imageSource: LazyArchiveImageSource(
-            archive: lazyArchive,
+            index: archiveIndex,
             imagePaths: paths,
             owningStream: stream,
           ),
@@ -102,11 +99,7 @@ class EpubReaderRepository implements ReaderRepository {
       );
     } catch (e, s) {
       return Err(
-        ParseException(
-          'Falha ao interpretar o EPUB.',
-          cause: e,
-          stackTrace: s,
-        ),
+        ParseException('Falha ao interpretar o EPUB.', cause: e, stackTrace: s),
       );
     }
   }
@@ -121,82 +114,77 @@ class EpubReaderRepository implements ReaderRepository {
         lower.endsWith('.svg');
   }
 
-  /// Walks the (possibly nested) TOC and returns a flat list of chapter
-  /// entries, dropping nodes that look like a navigation stub for their
-  /// own children. A node is considered a stub when:
-  ///
-  /// * its [ContentFileName] matches a descendant's content file (parent
-  ///   and child point to the same xhtml — parent only renders the
-  ///   heading at the top of that file);
-  /// * its title is a prefix of a direct child's title (e.g. "Capítulo 2"
-  ///   parent whose only child is "Capítulo 2 - O Início" — the parent's
-  ///   own page typically holds just the heading).
-  ///
-  /// In both cases the parent is omitted and the children are surfaced
-  /// directly. Otherwise the parent is kept alongside its descendants.
-  List<_ChapterEntry> _flattenAndPrune(List<epubx.EpubChapterRef> nodes) {
-    final out = <_ChapterEntry>[];
+  /// Builds the chapter list from the OPF spine, which is the canonical
+  /// reading order in EPUB. Title labels are pulled from the TOC where
+  /// available and otherwise derived from the file name. Nothing is
+  /// pruned: every spine xhtml — covers, illustration inserts, table of
+  /// contents pages, "chapter 2 part 2" continuations, etc. — shows up so
+  /// the reader sees exactly what the publisher shipped.
+  Future<List<_ChapterEntry>> _buildChaptersFromSpine(
+    epubx.EpubBookRef bookRef,
+    ArchiveIndex index,
+  ) async {
+    final pkg = bookRef.Schema?.Package;
+    if (pkg == null) return const [];
+    final manifest = pkg.Manifest?.Items ?? const <epubx.EpubManifestItem>[];
+    final spine = pkg.Spine?.Items ?? const <epubx.EpubSpineItemRef>[];
 
-    void walk(List<epubx.EpubChapterRef> level) {
-      for (final node in level) {
-        final subs = node.SubChapters ?? const <epubx.EpubChapterRef>[];
-        final hasSubs = subs.isNotEmpty;
-        final myFile = _baseFile(node.ContentFileName);
-        final myTitle = (node.Title ?? '').trim();
+    final manifestById = <String, epubx.EpubManifestItem>{
+      for (final item in manifest)
+        if (item.Id != null) item.Id!: item,
+    };
 
-        final keepSelf = myFile.isNotEmpty &&
-            (!hasSubs || _shouldKeepParent(node, subs));
-        if (keepSelf) {
-          out.add(_ChapterEntry(
-            title: myTitle.isEmpty ? 'Sem título' : myTitle,
-            path: node.ContentFileName ?? '',
-          ));
+    // Resolve TOC entries to canonical archive paths so labels survive
+    // hrefs that are relative to the NCX/nav doc rather than the OPF.
+    final labelByArchivePath = <String, String>{};
+    void absorbToc(List<epubx.EpubChapterRef>? nodes) {
+      if (nodes == null) return;
+      for (final node in nodes) {
+        final candidate = stripFragment(node.ContentFileName);
+        final title = (node.Title ?? '').trim();
+        final hit = index.find(candidate);
+        if (hit != null && title.isNotEmpty) {
+          labelByArchivePath.putIfAbsent(hit.name, () => title);
         }
-        if (hasSubs) walk(subs);
+        absorbToc(node.SubChapters);
       }
     }
 
-    walk(nodes);
-    return out;
+    absorbToc(await bookRef.getChapters());
+
+    final entries = <_ChapterEntry>[];
+    var counter = 0;
+    for (final ref in spine) {
+      final id = ref.IdRef;
+      if (id == null) continue;
+      final item = manifestById[id];
+      if (item == null) continue;
+
+      final media = (item.MediaType ?? '').toLowerCase();
+      if (media.isNotEmpty && !media.contains('html')) continue;
+
+      final href = item.Href;
+      if (href == null || href.isEmpty) continue;
+
+      final entry = index.find(href);
+      if (entry == null) continue;
+
+      counter += 1;
+      final label =
+          labelByArchivePath[entry.name] ?? _deriveTitle(entry.name, counter);
+      entries.add(_ChapterEntry(title: label, path: entry.name));
+    }
+    return entries;
   }
 
-  bool _shouldKeepParent(
-    epubx.EpubChapterRef parent,
-    List<epubx.EpubChapterRef> children,
-  ) {
-    final parentFile = _baseFile(parent.ContentFileName);
-    if (parentFile.isEmpty) return false;
-
-    final descendantFiles = <String>{};
-    void collect(List<epubx.EpubChapterRef> level) {
-      for (final n in level) {
-        final f = _baseFile(n.ContentFileName);
-        if (f.isNotEmpty) descendantFiles.add(f);
-        final s = n.SubChapters;
-        if (s != null && s.isNotEmpty) collect(s);
-      }
-    }
-
-    collect(children);
-    if (descendantFiles.contains(parentFile)) return false;
-
-    final pTitle = (parent.Title ?? '').trim().toLowerCase();
-    if (pTitle.isNotEmpty) {
-      for (final c in children) {
-        final cTitle = (c.Title ?? '').trim().toLowerCase();
-        if (cTitle.length > pTitle.length && cTitle.startsWith(pTitle)) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
-  String _baseFile(String? path) {
-    if (path == null || path.isEmpty) return '';
-    final hash = path.indexOf('#');
-    return hash >= 0 ? path.substring(0, hash) : path;
+  String _deriveTitle(String archivePath, int index) {
+    final slash = archivePath.lastIndexOf('/');
+    final base = slash >= 0 ? archivePath.substring(slash + 1) : archivePath;
+    final dot = base.lastIndexOf('.');
+    final stem = (dot > 0 ? base.substring(0, dot) : base)
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .trim();
+    return stem.isEmpty ? 'Capítulo $index' : stem;
   }
 }
 

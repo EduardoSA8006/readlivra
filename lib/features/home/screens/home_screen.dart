@@ -3,12 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/routes.dart';
+import '../../../core/models/book_entry.dart';
 import '../../../core/theme/app_palette.dart';
-import '../../library/data/models/book_entry.dart';
 import '../../library/providers.dart';
-import '../../library/screens/book_detail_screen.dart';
 import '../../library/viewmodels/library_state.dart';
-import '../../reader/screens/reader_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -25,6 +24,7 @@ class HomeScreen extends ConsumerWidget {
             SizedBox(height: 28),
             _QuickActions(),
             SizedBox(height: 28),
+            _RecentlyReadSection(),
             _RecentSection(),
           ],
         ),
@@ -131,9 +131,7 @@ class _ContinueReadingCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ReaderScreen(bookId: book.id, path: book.filePath),
-        ),
+        AppRoutes.reader(bookId: book.id, path: book.filePath),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -227,9 +225,7 @@ class _QuickActions extends ConsumerWidget {
           .pickAndImportEpub();
       if (entry == null || !context.mounted) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ReaderScreen(bookId: entry.id, path: entry.filePath),
-        ),
+        AppRoutes.reader(bookId: entry.id, path: entry.filePath),
       );
     }
 
@@ -302,6 +298,21 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
+class _RecentlyReadSection extends ConsumerWidget {
+  const _RecentlyReadSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(recentlyReadProvider);
+    final books = async.value ?? const <BookEntry>[];
+    if (books.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 28),
+      child: _BookRow(title: 'Últimas leituras', books: books.take(8).toList()),
+    );
+  }
+}
+
 class _RecentSection extends ConsumerWidget {
   const _RecentSection();
 
@@ -314,41 +325,46 @@ class _RecentSection extends ConsumerWidget {
           return const SizedBox.shrink();
         }
         final books = state.books.take(8).toList();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Adicionados recentemente',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 170,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: books.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (_, i) {
-                  final book = books[i];
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => BookDetailScreen(bookId: book.id),
-                      ),
-                    ),
-                    child: _SmallCover(entry: book, width: 110, height: 160),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
+        return _BookRow(title: 'Adicionados recentemente', books: books);
       },
       orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _BookRow extends StatelessWidget {
+  const _BookRow({required this.title, required this.books});
+  final String title;
+  final List<BookEntry> books;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 170,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: books.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final book = books[i];
+              return GestureDetector(
+                onTap: () => Navigator.of(context)
+                    .push(AppRoutes.bookDetail(bookId: book.id)),
+                child: _SmallCover(entry: book, width: 110, height: 160),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/annotations_repository.dart';
-import '../data/models/bookmark.dart';
-import '../data/models/highlight.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 import '../providers.dart';
 
 class AnnotationsViewModel extends Notifier<void> {

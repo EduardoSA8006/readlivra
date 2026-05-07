@@ -15,7 +15,7 @@ void main() {
       c.put(i, ['#$i']);
     }
     final evicted = c.evictFar(5);
-    expect(evicted, 7);
+    expect(evicted.toSet(), {0, 1, 2, 3, 7, 8, 9});
     expect(c.indices.toSet(), {4, 5, 6});
   });
 
@@ -32,7 +32,7 @@ void main() {
     final c = BlockCache(keepAround: 1);
     c.put(3, ['x']);
     c.put(4, ['y']);
-    expect(c.evictFar(3), 0);
+    expect(c.evictFar(3), isEmpty);
     expect(c.size, 2);
   });
 }

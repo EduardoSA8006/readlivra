@@ -18,15 +18,17 @@ class BlockCache {
   }
 
   /// Removes every cached chapter that is more than [keepAround] away from
-  /// [currentIndex]. Returns the number of evicted chapters.
-  int evictFar(int currentIndex) {
+  /// [currentIndex]. Returns the indices that were evicted, so callers
+  /// can release any sibling resources (e.g. the chapter HTML cached on
+  /// the [EbookChapter] itself).
+  List<int> evictFar(int currentIndex) {
     final keys = _entries.keys
         .where((k) => (k - currentIndex).abs() > keepAround)
         .toList(growable: false);
     for (final k in keys) {
       _entries.remove(k);
     }
-    return keys.length;
+    return keys;
   }
 
   Iterable<int> get indices => _entries.keys;

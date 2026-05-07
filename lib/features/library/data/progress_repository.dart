@@ -1,5 +1,5 @@
 import '../../../core/result/result.dart';
-import 'models/book_progress.dart';
+import '../../../core/models/book_progress.dart';
 
 abstract class ProgressRepository {
   Future<Result<BookProgress>> getProgress(String bookId);

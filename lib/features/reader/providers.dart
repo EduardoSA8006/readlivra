@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/storage_providers.dart';
-import '../../core/theme/reader_palette.dart';
+import 'data/chapter_parser_worker.dart';
+import 'data/reader_palette.dart';
 import 'data/models/reading_preferences.dart';
 import 'data/reader_repository.dart';
 import 'data/reader_repository_impl.dart';
@@ -12,6 +13,17 @@ import 'viewmodels/reading_preferences_viewmodel.dart';
 
 final readerRepositoryProvider = Provider<ReaderRepository>((ref) {
   return const EpubReaderRepository();
+});
+
+/// Long-lived background isolate that splits chapter HTML into blocks.
+/// Spawned lazily on first reader open and reused for the rest of the
+/// process — the per-call spawn of `compute()` showed up as a >100ms
+/// delay on every chapter navigation.
+final chapterParserWorkerProvider =
+    FutureProvider<ChapterParserWorker>((ref) async {
+  final worker = await ChapterParserWorker.spawn();
+  ref.onDispose(worker.dispose);
+  return worker;
 });
 
 final readerViewModelProvider =

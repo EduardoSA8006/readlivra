@@ -113,28 +113,27 @@ class ReadingPreferences {
     double? paragraphSpacing,
     ReadingTextAlign? textAlign,
     bool? centerHeadings,
-  }) =>
-      ReadingPreferences(
-        theme: theme ?? this.theme,
-        font: font ?? this.font,
-        fontSize: fontSize ?? this.fontSize,
-        lineHeight: lineHeight ?? this.lineHeight,
-        letterSpacing: letterSpacing ?? this.letterSpacing,
-        paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
-        textAlign: textAlign ?? this.textAlign,
-        centerHeadings: centerHeadings ?? this.centerHeadings,
-      );
+  }) => ReadingPreferences(
+    theme: theme ?? this.theme,
+    font: font ?? this.font,
+    fontSize: fontSize ?? this.fontSize,
+    lineHeight: lineHeight ?? this.lineHeight,
+    letterSpacing: letterSpacing ?? this.letterSpacing,
+    paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
+    textAlign: textAlign ?? this.textAlign,
+    centerHeadings: centerHeadings ?? this.centerHeadings,
+  );
 
   Map<String, dynamic> toJson() => {
-        'theme': theme.id,
-        'font': font.id,
-        'fontSize': fontSize,
-        'lineHeight': lineHeight,
-        'letterSpacing': letterSpacing,
-        'paragraphSpacing': paragraphSpacing,
-        'textAlign': textAlign.id,
-        'centerHeadings': centerHeadings,
-      };
+    'theme': theme.id,
+    'font': font.id,
+    'fontSize': fontSize,
+    'lineHeight': lineHeight,
+    'letterSpacing': letterSpacing,
+    'paragraphSpacing': paragraphSpacing,
+    'textAlign': textAlign.id,
+    'centerHeadings': centerHeadings,
+  };
 
   factory ReadingPreferences.fromJson(Map<String, dynamic> json) {
     return ReadingPreferences(
@@ -145,12 +144,14 @@ class ReadingPreferences {
       lineHeight:
           ((json['lineHeight'] as num?)?.toDouble() ?? defaults.lineHeight)
               .clamp(lineHeightRange.min, lineHeightRange.max),
-      letterSpacing: ((json['letterSpacing'] as num?)?.toDouble() ??
-              defaults.letterSpacing)
-          .clamp(letterSpacingRange.min, letterSpacingRange.max),
-      paragraphSpacing: ((json['paragraphSpacing'] as num?)?.toDouble() ??
-              defaults.paragraphSpacing)
-          .clamp(paragraphSpacingRange.min, paragraphSpacingRange.max),
+      letterSpacing:
+          ((json['letterSpacing'] as num?)?.toDouble() ??
+                  defaults.letterSpacing)
+              .clamp(letterSpacingRange.min, letterSpacingRange.max),
+      paragraphSpacing:
+          ((json['paragraphSpacing'] as num?)?.toDouble() ??
+                  defaults.paragraphSpacing)
+              .clamp(paragraphSpacingRange.min, paragraphSpacingRange.max),
       textAlign: ReadingTextAlign.fromId(json['textAlign'] as String?),
       centerHeadings:
           (json['centerHeadings'] as bool?) ?? defaults.centerHeadings,

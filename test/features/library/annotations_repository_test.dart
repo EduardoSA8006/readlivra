@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readlivra/features/library/data/annotations_repository_impl.dart';
-import 'package:readlivra/features/library/data/models/bookmark.dart';
-import 'package:readlivra/features/library/data/models/highlight.dart';
+import 'package:readlivra/core/models/bookmark.dart';
+import 'package:readlivra/core/models/highlight.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Bookmark _bookmark(String id, {int chapter = 0, int block = 0}) => Bookmark(

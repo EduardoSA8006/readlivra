@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/models/book_entry.dart';
-import '../data/models/book_progress.dart';
+import '../../../app/routes.dart';
+import '../../../core/models/book_entry.dart';
+import '../../../core/models/book_progress.dart';
 import '../providers.dart';
 import '../viewmodels/library_state.dart';
 import '../viewmodels/library_ui_notifier.dart';
-import 'book_detail_screen.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -35,17 +35,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(
-            message: e.toString(),
-            onRetry: vm.reload,
-          ),
+          error: (e, _) =>
+              _ErrorView(message: e.toString(), onRetry: vm.reload),
           data: (state) => switch (state) {
             LibraryError(:final error) => _ErrorView(
-                message: error.message,
-                onRetry: vm.reload,
-              ),
-            LibraryLoading() =>
-              const Center(child: CircularProgressIndicator()),
+              message: error.message,
+              onRetry: vm.reload,
+            ),
+            LibraryLoading() => const Center(
+              child: CircularProgressIndicator(),
+            ),
             LibraryLoaded() => _buildLoaded(context, state, vm),
           },
         ),
@@ -76,17 +75,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     await vm.pickAndImportEpub();
   }
 
-  Widget _buildLoaded(
-    BuildContext context,
-    LibraryLoaded state,
-    dynamic vm,
-  ) {
+  Widget _buildLoaded(BuildContext context, LibraryLoaded state, dynamic vm) {
     if (state.lastError != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.lastError!.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.lastError!.message)));
         vm.clearError();
       });
     }
@@ -105,7 +100,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final filtered = _applyFilters(state.books, ui);
 
     return RefreshIndicator(
-      onRefresh: () async => vm.reload(),
+      onRefresh: vm.refresh,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -150,10 +145,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  List<BookEntry> _applyFilters(
-    List<BookEntry> input,
-    LibraryUiState ui,
-  ) {
+  List<BookEntry> _applyFilters(List<BookEntry> input, LibraryUiState ui) {
     var list = [...input];
     if (ui.query.isNotEmpty) {
       final q = ui.query.toLowerCase();
@@ -166,12 +158,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       case LibrarySortMode.recentlyAdded:
         list.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
       case LibrarySortMode.title:
-        list.sort((a, b) =>
-            a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        list.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
       case LibrarySortMode.author:
-        list.sort((a, b) => (a.author ?? '~')
-            .toLowerCase()
-            .compareTo((b.author ?? '~').toLowerCase()));
+        list.sort(
+          (a, b) => (a.author ?? '~').toLowerCase().compareTo(
+            (b.author ?? '~').toLowerCase(),
+          ),
+        );
     }
     return list;
   }
@@ -223,11 +218,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _openDetail(BuildContext context, BookEntry entry) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BookDetailScreen(bookId: entry.id),
-      ),
-    );
+    Navigator.of(context).push(AppRoutes.bookDetail(bookId: entry.id));
   }
 
   Future<void> _confirmRemove(
@@ -239,8 +230,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover livro?'),
-        content:
-            Text('"${entry.title}" será removido da biblioteca.'),
+        content: Text('"${entry.title}" será removido da biblioteca.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -273,16 +263,13 @@ class _Header extends StatelessWidget {
     final subtitle = hasFilter
         ? '$filteredCount de $count'
         : count == 0
-            ? 'Nenhum livro ainda'
-            : '$count ${count == 1 ? "livro" : "livros"}';
+        ? 'Nenhum livro ainda'
+        : '$count ${count == 1 ? "livro" : "livros"}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 13,
-          color: scheme.onSurfaceVariant,
-        ),
+        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
       ),
     );
   }
@@ -476,10 +463,7 @@ class _GridItem extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          AspectRatio(
-            aspectRatio: 0.66,
-            child: _CoverImage(entry: entry),
-          ),
+          AspectRatio(aspectRatio: 0.66, child: _CoverImage(entry: entry)),
           const SizedBox(height: 8),
           if (progress > 0)
             ClipRRect(
@@ -520,10 +504,7 @@ class _GridItem extends ConsumerWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             softWrap: false,
-            style: TextStyle(
-              fontSize: 11,
-              color: scheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -548,8 +529,10 @@ class _ListItem extends ConsumerWidget {
     final bookProgress = progressAsync.value;
     final progress = _progressFor(bookProgress, entry);
     final chapterCount = entry.chapterCount ?? 0;
-    final currentChapter =
-        ((bookProgress?.chapterIndex ?? 0) + 1).clamp(0, chapterCount);
+    final currentChapter = ((bookProgress?.chapterIndex ?? 0) + 1).clamp(
+      0,
+      chapterCount,
+    );
     final isCompleted = progress >= 1;
     final isReading = progress > 0 && !isCompleted;
 
@@ -624,10 +607,10 @@ class _ListItem extends ConsumerWidget {
                           child: LinearProgressIndicator(
                             value: progress,
                             minHeight: 4,
-                            backgroundColor:
-                                scheme.outline.withValues(alpha: 0.6),
-                            valueColor:
-                                AlwaysStoppedAnimation(scheme.primary),
+                            backgroundColor: scheme.outline.withValues(
+                              alpha: 0.6,
+                            ),
+                            valueColor: AlwaysStoppedAnimation(scheme.primary),
                           ),
                         ),
                       ],
@@ -858,8 +841,11 @@ class _EmptyLibrary extends StatelessWidget {
                 color: scheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.menu_book_outlined,
-                  size: 44, color: scheme.primary),
+              child: Icon(
+                Icons.menu_book_outlined,
+                size: 44,
+                color: scheme.primary,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -901,8 +887,11 @@ class _EmptySearch extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off_rounded,
-                size: 56, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.search_off_rounded,
+              size: 56,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
             Text(
               'Nenhum livro corresponde a "$query"',
@@ -933,8 +922,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: Color(0xFFB35454)),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: Color(0xFFB35454),
+            ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

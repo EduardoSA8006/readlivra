@@ -1,6 +1,6 @@
 import '../../../core/result/result.dart';
-import 'models/bookmark.dart';
-import 'models/highlight.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 
 abstract class AnnotationsRepository {
   Future<Result<List<Bookmark>>> listBookmarks(String bookId);

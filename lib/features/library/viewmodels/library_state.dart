@@ -1,5 +1,5 @@
 import '../../../core/result/app_exceptions.dart';
-import '../data/models/book_entry.dart';
+import '../../../core/models/book_entry.dart';
 
 sealed class LibraryState {
   const LibraryState();

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
-import '../../reader/data/models/ebook.dart';
-import '../../reader/screens/reader_screen.dart';
+import '../../../app/routes.dart';
+import '../../../core/models/ebook.dart';
 import '../providers.dart';
 
 class BookTocScreen extends ConsumerStatefulWidget {
@@ -70,12 +70,10 @@ class _BookTocScreenState extends ConsumerState<BookTocScreen> {
 
   Future<void> _openChapter(int index) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReaderScreen(
-          bookId: widget.bookId,
-          path: widget.filePath,
-          initialChapter: index,
-        ),
+      AppRoutes.reader(
+        bookId: widget.bookId,
+        path: widget.filePath,
+        initialChapter: index,
       ),
     );
     if (mounted) Navigator.of(context).pop();

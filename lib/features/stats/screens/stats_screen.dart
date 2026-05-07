@@ -3,11 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_palette.dart';
-import '../../library/data/models/book_entry.dart';
-import '../../library/data/models/book_progress.dart';
+import '../../../app/routes.dart';
+import '../../../core/models/book_entry.dart';
+import '../../../core/models/book_progress.dart';
 import '../../library/providers.dart';
-import '../../library/screens/book_detail_screen.dart';
 import '../../library/viewmodels/library_state.dart';
 import '../data/models/reading_summary.dart';
 import '../providers.dart';
@@ -51,9 +50,7 @@ class _SummaryView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        _HeroCard(summary: summary),
-        const SizedBox(height: 16),
-        _MetricsGrid(summary: summary),
+        _MinimalHero(summary: summary),
         const SizedBox(height: 24),
         _WeekChart(summary: summary),
         const SizedBox(height: 24),
@@ -78,230 +75,141 @@ class _SummaryView extends ConsumerWidget {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.summary});
+class _MinimalHero extends StatelessWidget {
+  const _MinimalHero({required this.summary});
   final ReadingSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: AppPalette.heroGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1F4FCC).withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    final scheme = Theme.of(context).colorScheme;
+    final streak = summary.currentStreak;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'TEMPO DE LEITURA HOJE',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _formatDurationFull(summary.today),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              height: 1.0,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 18),
           Row(
             children: [
-              _HeroBadge(
-                icon: Icons.local_fire_department_rounded,
-                label:
-                    '${summary.currentStreak} '
-                    '${summary.currentStreak == 1 ? "dia seguido" : "dias seguidos"}',
+              Expanded(
+                child: _StatCircle(
+                  label: 'Hoje',
+                  value: _circleDuration(summary.today),
+                  accent: scheme.primary,
+                ),
               ),
-              const SizedBox(width: 10),
-              _HeroBadge(
-                icon: Icons.event_available_rounded,
-                label:
-                    '${summary.activeDays} '
-                    '${summary.activeDays == 1 ? "dia ativo" : "dias ativos"}',
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StatCircle(
+                  label: 'Total',
+                  value: _circleDuration(summary.allTime),
+                  accent: scheme.secondary,
+                ),
               ),
             ],
           ),
+          if (streak > 0) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 18,
+                  color: scheme.secondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$streak '
+                  '${streak == 1 ? "dia seguido" : "dias seguidos"}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid({required this.summary});
-  final ReadingSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.calendar_view_week_rounded,
-                label: 'Esta semana',
-                value: formatDuration(summary.last7Days),
-                color: scheme.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.calendar_month_rounded,
-                label: 'Este mês',
-                value: formatDuration(summary.last30Days),
-                color: scheme.tertiary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.timer_rounded,
-                label: 'Tempo total',
-                value: formatDuration(summary.allTime),
-                color: scheme.secondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MetricTile(
-                icon: Icons.timeline_rounded,
-                label: 'Desde a instalação',
-                value:
-                    '${DateTime.now().difference(summary.installedAt).inDays + 1}d',
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.icon,
+class _StatCircle extends StatelessWidget {
+  const _StatCircle({
     required this.label,
     required this.value,
-    required this.color,
+    required this.accent,
   });
 
-  final IconData icon;
   final String label;
   final String value;
-  final Color color;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: scheme.surface,
+          border: Border.all(color: scheme.outline),
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
             ),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: scheme.onSurface,
-                height: 1.1,
-                letterSpacing: -0.3,
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                  height: 1.0,
+                  letterSpacing: -0.6,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11.5,
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+String _circleDuration(Duration d) {
+  if (d < const Duration(minutes: 1)) return '0m';
+  return _formatDurationFull(d);
 }
 
 enum _ChartUnit { hours, minutes }
@@ -774,9 +682,7 @@ class _BooksCard extends StatelessWidget {
                 onTap: entry == null
                     ? null
                     : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BookDetailScreen(bookId: stat.bookId),
-                        ),
+                        AppRoutes.bookDetail(bookId: stat.bookId),
                       ),
               );
             }),
@@ -1064,10 +970,7 @@ class _AllBooksTimeScreenState extends ConsumerState<_AllBooksTimeScreen> {
                       showDivider: i < ordered.length - 1,
                       onTap: widget.booksById.containsKey(ordered[i].bookId)
                           ? () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    BookDetailScreen(bookId: ordered[i].bookId),
-                              ),
+                              AppRoutes.bookDetail(bookId: ordered[i].bookId),
                             )
                           : null,
                     ),

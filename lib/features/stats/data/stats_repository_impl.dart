@@ -4,24 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
+import 'date_keys.dart';
 import 'stats_repository.dart';
-
-String dateKeyOf(DateTime d) {
-  final local = d.toLocal();
-  return '${local.year.toString().padLeft(4, '0')}-'
-      '${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')}';
-}
-
-DateTime? parseDateKey(String key) {
-  final parts = key.split('-');
-  if (parts.length != 3) return null;
-  final y = int.tryParse(parts[0]);
-  final m = int.tryParse(parts[1]);
-  final d = int.tryParse(parts[2]);
-  if (y == null || m == null || d == null) return null;
-  return DateTime(y, m, d);
-}
 
 class SharedPrefsStatsRepository implements StatsRepository {
   SharedPrefsStatsRepository(this._prefs);

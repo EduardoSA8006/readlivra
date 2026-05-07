@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/result/app_exceptions.dart';
+import '../../../core/models/book_progress.dart';
 import '../../reader/providers.dart';
-import '../../stats/data/stats_repository_impl.dart';
+import '../../stats/data/date_keys.dart';
 import '../../stats/providers.dart';
-import '../data/models/book_progress.dart';
 import '../providers.dart';
 import 'book_detail_state.dart';
 

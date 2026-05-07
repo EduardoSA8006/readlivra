@@ -1,5 +1,5 @@
+import 'date_keys.dart';
 import 'models/reading_summary.dart';
-import 'stats_repository_impl.dart';
 
 /// Pure composition of the reading summary, pulled out of the view model so
 /// it can be exercised by unit tests without spinning up Riverpod.

@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
 import 'library_repository.dart';
-import 'models/book_entry.dart';
+import '../../../core/models/book_entry.dart';
 
 class SharedPrefsLibraryRepository implements LibraryRepository {
   SharedPrefsLibraryRepository(this._prefs);

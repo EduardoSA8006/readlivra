@@ -2,7 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/result/app_exceptions.dart';
-import '../../library/data/models/book_progress.dart';
+import '../../../core/models/book_progress.dart';
 import '../../library/data/progress_repository.dart';
 import '../../library/providers.dart';
 import '../data/reader_repository.dart';
@@ -61,8 +61,7 @@ class ReaderViewModel extends Notifier<ReaderState> {
         var chapter = 0;
         ReaderAnchor? pending;
         if (initialChapter != null) {
-          final lastIndex =
-              ebook.chapterCount > 0 ? ebook.chapterCount - 1 : 0;
+          final lastIndex = ebook.chapterCount > 0 ? ebook.chapterCount - 1 : 0;
           chapter = initialChapter.clamp(0, lastIndex).toInt();
           pending = initialAnchor;
           if (bookId != null) {
@@ -136,9 +135,7 @@ class ReaderViewModel extends Notifier<ReaderState> {
 
   void goToChapter(int index) {
     final s = state;
-    if (s is ReaderReading &&
-        index >= 0 &&
-        index < s.ebook.chapterCount) {
+    if (s is ReaderReading && index >= 0 && index < s.ebook.chapterCount) {
       _resetSaveTracking(null);
       state = ReaderReading(
         ebook: s.ebook,
@@ -183,9 +180,8 @@ class ReaderViewModel extends Notifier<ReaderState> {
     final blockChanged = blockIndex != _lastSavedBlock;
     final alignmentDelta = (alignment - _lastSavedAlignment).abs();
     final elapsed = now.difference(_lastSaveAt);
-    final shouldSave = blockChanged ||
-        alignmentDelta > 0.15 ||
-        elapsed.inMilliseconds > 1500;
+    final shouldSave =
+        blockChanged || alignmentDelta > 0.15 || elapsed.inMilliseconds > 1500;
     if (!shouldSave) return;
     _lastSavedBlock = blockIndex;
     _lastSavedAlignment = alignment;

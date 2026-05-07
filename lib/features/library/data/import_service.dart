@@ -5,7 +5,7 @@ import 'package:epubx/epubx.dart' as epubx;
 
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
-import 'models/book_entry.dart';
+import '../../../core/models/book_entry.dart';
 
 class ImportService {
   const ImportService();
@@ -71,6 +71,69 @@ class ImportService {
         cause: e,
         stackTrace: s,
       ));
+    }
+  }
+
+  /// Scans [booksDir] for `.epub` files not in [knownPaths], yielding a
+  /// [BookEntry] per file as it's parsed. Files are left in place — this
+  /// is the discovery counterpart of [importEpub], which copies an
+  /// outside file in. Useful for picking up books sideloaded into the
+  /// app's documents directory or after a reinstall when the catalog was
+  /// cleared but the EPUBs remained on disk.
+  ///
+  /// Each parse yields back to the event loop so a directory of dozens of
+  /// EPUBs doesn't block the UI thread for seconds at a time.
+  Stream<BookEntry> discoverNew({
+    required Directory booksDir,
+    required Set<String> knownPaths,
+  }) async* {
+    if (!await booksDir.exists()) return;
+    await for (final entity in booksDir.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final path = entity.path;
+      if (!path.toLowerCase().endsWith('.epub')) continue;
+      if (knownPaths.contains(path)) continue;
+
+      final entry = await _entryForExisting(entity, booksDir);
+      if (entry != null) yield entry;
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  Future<BookEntry?> _entryForExisting(File source, Directory booksDir) async {
+    try {
+      final bytes = await source.readAsBytes();
+      final epubBook = await epubx.EpubReader.readBook(bytes);
+
+      final id = _buildId(source.path);
+      String? coverPath;
+      final coverBytes = _findCoverBytes(epubBook);
+      if (coverBytes != null) {
+        final coverFile = File('${booksDir.path}/$id.cover');
+        await coverFile.writeAsBytes(coverBytes, flush: true);
+        coverPath = coverFile.path;
+      }
+
+      final title = (epubBook.Title ?? '').trim().isEmpty
+          ? _basenameWithoutExtension(source.path)
+          : epubBook.Title!.trim();
+      final author = (epubBook.Author ?? '').trim().isEmpty
+          ? null
+          : epubBook.Author!.trim();
+      final chapterCount = _flatten(epubBook.Chapters ?? const []).length;
+
+      return BookEntry(
+        id: id,
+        title: title,
+        author: author,
+        filePath: source.path,
+        coverPath: coverPath,
+        dateAdded: DateTime.now(),
+        chapterCount: chapterCount,
+      );
+    } catch (_) {
+      // Skip unreadable files — discovery is best-effort.
+      return null;
     }
   }
 

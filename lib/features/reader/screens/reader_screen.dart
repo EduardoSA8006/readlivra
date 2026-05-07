@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,14 +9,15 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../../core/result/app_exceptions.dart';
 import '../../stats/data/reading_session_service.dart';
 import '../../stats/providers.dart';
-import '../../library/data/models/bookmark.dart';
-import '../../library/data/models/highlight.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 import '../../library/providers.dart';
 import '../data/block_cache.dart';
 import '../data/chapter_blocks.dart';
 import '../data/font_resolver.dart';
 import '../data/highlight_renderer.dart';
-import '../data/models/ebook.dart';
+import '../data/simple_block_renderer.dart';
+import '../../../core/models/ebook.dart';
 import '../data/models/reading_preferences.dart';
 import '../providers.dart';
 import '../viewmodels/reader_state.dart';
@@ -65,17 +66,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     with WidgetsBindingObserver {
   ReadingSessionService? _session;
   String? _trackedBookId;
+  // Cached during initState so dispose can release the reader state
+  // without touching `ref` (which is unsafe once the widget is being
+  // unmounted in Riverpod 3).
+  late final ReaderViewModel _readerNotifier;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _readerNotifier = ref.read(readerViewModelProvider.notifier);
     _initSessionService();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final s = ref.read(readerViewModelProvider);
       if (s is! ReaderIdle) return;
-      final vm = ref.read(readerViewModelProvider.notifier);
       if (widget.path != null) {
         final anchor = widget.initialAnchorBlock == null
             ? null
@@ -83,14 +88,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 blockIndex: widget.initialAnchorBlock!,
                 alignment: widget.initialAnchorAlignment ?? 0,
               );
-        vm.openEpub(
+        _readerNotifier.openEpub(
           widget.path!,
           bookId: widget.bookId,
           initialChapter: widget.initialChapter,
           initialAnchor: anchor,
         );
       } else if (widget.autoPick) {
-        vm.pickAndOpenEpub();
+        _readerNotifier.pickAndOpenEpub();
       }
     });
   }
@@ -125,6 +130,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_session?.stop());
+    // Reset the global reader state so a system-back / swipe-back exit
+    // doesn't leave a stale ReaderReading hanging around. Deferred via
+    // Future so we don't mutate a provider mid-lifecycle (Riverpod 3
+    // forbids that during dispose). The notifier reference was cached
+    // in initState because `ref` is unsafe once the widget unmounts.
+    final notifier = _readerNotifier;
+    Future(() => notifier.close());
     super.dispose();
   }
 
@@ -182,27 +194,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         ),
         title: switch (state) {
           ReaderReading(:final ebook, :final chapterIndex) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ebook.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: palette.textPrimary,
-                  ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ebook.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
                 ),
-                Text(
-                  'Cap. ${chapterIndex + 1} de ${ebook.chapterCount}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: palette.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Text(
+                'Cap. ${chapterIndex + 1} de ${ebook.chapterCount}',
+                style: TextStyle(fontSize: 11, color: palette.textSecondary),
+              ),
+            ],
+          ),
           _ => const SizedBox.shrink(),
         },
         centerTitle: false,
@@ -210,24 +219,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           if (readingState != null)
             Builder(
               builder: (ctx) => IconButton(
-                icon: Icon(Icons.format_list_bulleted_rounded,
-                    color: palette.textPrimary),
+                icon: Icon(
+                  Icons.format_list_bulleted_rounded,
+                  color: palette.textPrimary,
+                ),
                 tooltip: 'Sumário',
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
               ),
             ),
           if (readingState != null && readingState.bookId != null)
             IconButton(
-              icon: Icon(Icons.bookmarks_outlined,
-                  color: palette.textPrimary),
+              icon: Icon(Icons.bookmarks_outlined, color: palette.textPrimary),
               tooltip: 'Marcadores e destaques',
               onPressed: () =>
                   showAnnotationsListSheet(context, readingState.bookId!),
             ),
           if (readingState != null)
             IconButton(
-              icon: Icon(Icons.text_fields_rounded,
-                  color: palette.textPrimary),
+              icon: Icon(Icons.text_fields_rounded, color: palette.textPrimary),
               tooltip: 'Preferências de leitura',
               onPressed: () => showReadingPreferencesSheet(context),
             ),
@@ -237,9 +246,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         ReaderIdle() => _IdleView(onOpen: vm.pickAndOpenEpub),
         ReaderLoading() => const Center(child: CircularProgressIndicator()),
         ReaderError(:final error) => _ErrorView(
-            error: error,
-            onRetry: vm.pickAndOpenEpub,
-          ),
+          error: error,
+          onRetry: vm.pickAndOpenEpub,
+        ),
         ReaderReading() => _ReadingView(state: state),
       },
       bottomNavigationBar: state is ReaderReading
@@ -249,7 +258,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   }
 }
 
-class _IdleView extends ConsumerWidget{
+class _IdleView extends ConsumerWidget {
   const _IdleView({required this.onOpen});
   final VoidCallback onOpen;
 
@@ -263,8 +272,11 @@ class _IdleView extends ConsumerWidget{
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.menu_book_rounded,
-                size: 56, color: palette.textSecondary),
+            Icon(
+              Icons.menu_book_rounded,
+              size: 56,
+              color: palette.textSecondary,
+            ),
             const SizedBox(height: 16),
             Text(
               'Selecione um arquivo .epub para começar',
@@ -278,7 +290,9 @@ class _IdleView extends ConsumerWidget{
                 backgroundColor: palette.textPrimary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 22, vertical: 14),
+                  horizontal: 22,
+                  vertical: 14,
+                ),
               ),
               icon: const Icon(Icons.file_open_outlined),
               label: const Text('Abrir EPUB'),
@@ -303,8 +317,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: Color(0xFFB35454)),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: Color(0xFFB35454),
+            ),
             const SizedBox(height: 12),
             Text(
               error.message,
@@ -336,14 +353,17 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
   final _itemScrollController = ItemScrollController();
   final _itemPositionsListener = ItemPositionsListener.create();
 
-  /// Block cache keeps the current chapter ± 1 in memory; everything past
-  /// that is dropped to keep memory pressure low on big books.
-  final BlockCache _cache = BlockCache(keepAround: 1);
-  static const _prefetchRange = 2;
+  /// Block cache keeps the current chapter ± [BlockCache.keepAround] in
+  /// memory. With ~150 KB of HTML+blocks per chapter, the 50-chapter
+  /// window covers most novels in full while still capping memory on
+  /// long books (e.g. 500-chapter web novels).
+  final BlockCache _cache = BlockCache(keepAround: 50);
   final Set<int> _pending = <int>{};
 
   bool _anchorRestored = false;
   List<String>? _currentBlocks;
+  int _lastChapterIndex = 0;
+  int _navDirection = 1;
 
   @override
   void initState() {
@@ -399,7 +419,8 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     if (cached != null) return cached;
     final chapter = widget.state.ebook.chapters[chapterIndex];
     final html = await chapter.loadHtml();
-    final blocks = await compute(splitChapterIntoBlocks, html);
+    final worker = await ref.read(chapterParserWorkerProvider.future);
+    final blocks = await worker.split(html);
     _cache.put(chapterIndex, blocks);
     return blocks;
   }
@@ -422,10 +443,23 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
 
   void _scheduleHousekeeping() {
     final current = widget.state.chapterIndex;
-    _cache.evictFar(current);
-    for (var d = 1; d <= _prefetchRange; d++) {
-      _prefetchNeighbor(current + d);
-      _prefetchNeighbor(current - d);
+    if (current != _lastChapterIndex) {
+      _navDirection = current >= _lastChapterIndex ? 1 : -1;
+      _lastChapterIndex = current;
+    }
+    final evicted = _cache.evictFar(current);
+    final ebook = widget.state.ebook;
+    for (final i in evicted) {
+      if (i >= 0 && i < ebook.chapterCount) ebook.chapters[i].clearCache();
+    }
+
+    // Always keep the immediate neighbors warm so a stray back-tap is
+    // instant; bias the deeper prefetch in the direction the reader is
+    // actually moving so forward reading hides the parse cost.
+    _prefetchNeighbor(current + 1);
+    _prefetchNeighbor(current - 1);
+    for (var d = 2; d <= 6; d++) {
+      _prefetchNeighbor(current + d * _navDirection);
     }
   }
 
@@ -438,8 +472,7 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     }
     final blocks = _currentBlocks;
     if (blocks == null) return; // try again once blocks are loaded
-    // +1 because index 0 is reserved for the title.
-    final target = (anchor.blockIndex + 1).clamp(0, blocks.length);
+    final target = anchor.blockIndex.clamp(0, blocks.length - 1);
     if (!_itemScrollController.isAttached) return;
     _itemScrollController.jumpTo(
       index: target,
@@ -459,7 +492,7 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
     if (visible.isEmpty) return;
     visible.sort((a, b) => a.index.compareTo(b.index));
     final first = visible.first;
-    final logicalIndex = (first.index - 1).clamp(0, 1 << 30);
+    final logicalIndex = first.index.clamp(0, 1 << 30);
     final alignment = (-first.itemLeadingEdge).clamp(0.0, 1.0).toDouble();
 
     ref
@@ -484,16 +517,17 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
   @override
   Widget build(BuildContext context) {
     if (!_anchorRestored && widget.state.pendingAnchor != null) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _maybeRestoreAnchor());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _maybeRestoreAnchor(),
+      );
     }
     final blocks = _currentBlocks;
     if (blocks == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    final prefs = ref.watch(readingPreferencesProvider).value ??
+    final prefs =
+        ref.watch(readingPreferencesProvider).value ??
         ReadingPreferences.defaults;
-    final palette = ref.watch(readerPaletteProvider);
     final bookId = widget.state.bookId;
 
     final bookmarks = bookId == null
@@ -522,34 +556,17 @@ class _ReadingViewState extends ConsumerState<_ReadingView> {
       // RenderObjects so memory stays bounded on long chapters.
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: true,
-      itemCount: blocks.length + 1,
+      itemCount: blocks.length,
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              widget.state.currentChapter.title,
-              style: TextStyle(
-                fontFamily: resolveFontFamily(prefs.font),
-                fontSize: prefs.fontSize + 5,
-                fontWeight: FontWeight.w700,
-                color: palette.textPrimary,
-                height: 1.25,
-                letterSpacing: prefs.letterSpacing,
-              ),
-            ),
-          );
-        }
-        final blockIndex = index - 1;
         return _BlockHtml(
-          html: blocks[blockIndex],
+          html: blocks[index],
           ebook: widget.state.ebook,
           prefs: prefs,
-          bookmarked: bookmarkedBlocks.contains(blockIndex),
-          highlights: highlightsByBlock[blockIndex] ?? const [],
+          bookmarked: bookmarkedBlocks.contains(index),
+          highlights: highlightsByBlock[index] ?? const [],
           bookId: bookId,
           chapterIndex: widget.state.chapterIndex,
-          blockIndex: blockIndex,
+          blockIndex: index,
         );
       },
     );
@@ -594,28 +611,99 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
     final highlights = widget.highlights;
     final palette = ref.watch(readerPaletteProvider);
     final family = resolveFontFamily(prefs.font);
-    final partials =
-        highlights.where((h) => !h.isWholeBlock).toList(growable: false);
-    final wholes =
-        highlights.where((h) => h.isWholeBlock).toList(growable: false);
+    final partials = highlights
+        .where((h) => !h.isWholeBlock)
+        .toList(growable: false);
+    final wholes = highlights
+        .where((h) => h.isWholeBlock)
+        .toList(growable: false);
 
     final renderedHtml = partials.isEmpty
         ? html
         : wrapHighlights(
             html,
             partials
-                .map((h) => HighlightRange(
-                      start: h.startOffset!,
-                      end: h.endOffset!,
-                      backgroundArgb: h.color.background,
-                      accentArgb: h.color.accent,
-                    ))
+                .map(
+                  (h) => HighlightRange(
+                    start: h.startOffset!,
+                    end: h.endOffset!,
+                    backgroundArgb: h.color.background,
+                    accentArgb: h.color.accent,
+                  ),
+                )
                 .toList(),
           );
 
     final bodyAlign = _toTextAlign(prefs.textAlign);
-    final headingAlign =
-        prefs.centerHeadings ? TextAlign.center : bodyAlign;
+    final headingAlign = prefs.centerHeadings ? TextAlign.center : bodyAlign;
+
+    // Fast path: when the block is plain inline markup (the vast majority
+    // of paragraphs and headings) skip flutter_html altogether and render
+    // a single Text.rich. flutter_html chokes on some real-world EPUBs
+    // (Shadow Slave's deeply-nested styled wrappers leave entire chapters
+    // blank) and the bypass is also significantly cheaper per build.
+    if (partials.isEmpty) {
+      final simple = tryBuildSimpleBlock(
+        html: html,
+        prefs: prefs,
+        palette: palette,
+        fontFamily: family,
+        bodyAlign: bodyAlign,
+        headingAlign: headingAlign,
+      );
+      if (simple != null) {
+        Widget body = simple.widget;
+        if (wholes.isNotEmpty) {
+          final whole = wholes.last;
+          body = Container(
+            padding: const EdgeInsets.fromLTRB(8, 4, 6, 4),
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            decoration: BoxDecoration(
+              color: Color(whole.color.background).withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(6),
+              border: Border(
+                left: BorderSide(color: Color(whole.color.accent), width: 3),
+              ),
+            ),
+            child: body,
+          );
+        } else if (bookmarked) {
+          body = Container(
+            padding: const EdgeInsets.only(left: 8),
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: palette.accent, width: 2)),
+            ),
+            child: body,
+          );
+        }
+        if (bookId == null) return body;
+        return SelectionArea(
+          onSelectionChanged: (content) {
+            _lastSelected = content?.plainText;
+          },
+          contextMenuBuilder: (context, state) {
+            final selected = _lastSelected ?? '';
+            final canHighlight = selected.trim().isNotEmpty;
+            return AdaptiveTextSelectionToolbar.buttonItems(
+              anchors: state.contextMenuAnchors,
+              buttonItems: [
+                if (canHighlight)
+                  ContextMenuButtonItem(
+                    label: 'Destacar',
+                    onPressed: () {
+                      state.hideToolbar();
+                      _persistHighlight(selected);
+                    },
+                  ),
+                ...state.contextMenuButtonItems,
+              ],
+            );
+          },
+          child: body,
+        );
+      }
+    }
+
     final blockStyle = <String, Style>{
       'body': Style(
         fontFamily: family,
@@ -677,9 +765,7 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
       content = Container(
         padding: const EdgeInsets.only(left: 8),
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: palette.accent, width: 2),
-          ),
+          border: Border(left: BorderSide(color: palette.accent, width: 2)),
         ),
         child: htmlWidget,
       );
@@ -723,7 +809,9 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
     final snippet = selectedText.length > 160
         ? '${selectedText.substring(0, 160).trimRight()}…'
         : selectedText;
-    ref.read(annotationsViewModelProvider.notifier).addHighlight(
+    ref
+        .read(annotationsViewModelProvider.notifier)
+        .addHighlight(
           bookId: id,
           chapterIndex: widget.chapterIndex,
           blockIndex: widget.blockIndex,
@@ -734,7 +822,7 @@ class _BlockHtmlState extends ConsumerState<_BlockHtml> {
   }
 }
 
-class _ReaderBottomBar extends ConsumerWidget{
+class _ReaderBottomBar extends ConsumerWidget {
   const _ReaderBottomBar({required this.state, required this.vm});
   final ReaderReading state;
   final ReaderViewModel vm;
@@ -752,15 +840,17 @@ class _ReaderBottomBar extends ConsumerWidget{
     final activeBlock = position?.chapterIndex == state.chapterIndex
         ? position!.blockIndex
         : null;
-    final hasBookmarkOnCurrentBlock = activeBlock != null &&
-        bookmarks.any((b) =>
-            b.chapterIndex == state.chapterIndex &&
-            b.blockIndex == activeBlock);
+    final hasBookmarkOnCurrentBlock =
+        activeBlock != null &&
+        bookmarks.any(
+          (b) =>
+              b.chapterIndex == state.chapterIndex &&
+              b.blockIndex == activeBlock,
+        );
 
     Future<void> toggleBookmark() async {
       if (bookId == null || activeBlock == null) return;
-      final annotations =
-          ref.read(annotationsViewModelProvider.notifier);
+      final annotations = ref.read(annotationsViewModelProvider.notifier);
       if (hasBookmarkOnCurrentBlock) {
         await annotations.removeBookmarkAt(
           bookId: bookId,
@@ -768,10 +858,8 @@ class _ReaderBottomBar extends ConsumerWidget{
           blockIndex: activeBlock,
         );
       } else {
-        final blocks = splitChapterIntoBlocks(
-            state.currentChapter.htmlContent);
-        final html =
-            activeBlock < blocks.length ? blocks[activeBlock] : '';
+        final blocks = splitChapterIntoBlocks(state.currentChapter.htmlContent);
+        final html = activeBlock < blocks.length ? blocks[activeBlock] : '';
         await annotations.addBookmark(
           bookId: bookId,
           chapterIndex: state.chapterIndex,
@@ -798,8 +886,7 @@ class _ReaderBottomBar extends ConsumerWidget{
                 value: state.progress,
                 minHeight: 3,
                 backgroundColor: const Color(0xFFEDE7DD),
-                valueColor:
-                    AlwaysStoppedAnimation(palette.accent),
+                valueColor: AlwaysStoppedAnimation(palette.accent),
               ),
             ),
             SizedBox(
@@ -808,8 +895,7 @@ class _ReaderBottomBar extends ConsumerWidget{
                 children: [
                   Expanded(
                     child: TextButton.icon(
-                      onPressed:
-                          state.hasPrevious ? vm.previousChapter : null,
+                      onPressed: state.hasPrevious ? vm.previousChapter : null,
                       icon: const Icon(Icons.chevron_left_rounded),
                       label: const Text('Anterior'),
                       style: TextButton.styleFrom(
@@ -818,10 +904,9 @@ class _ReaderBottomBar extends ConsumerWidget{
                     ),
                   ),
                   IconButton(
-                    onPressed:
-                        bookId == null || activeBlock == null
-                            ? null
-                            : toggleBookmark,
+                    onPressed: bookId == null || activeBlock == null
+                        ? null
+                        : toggleBookmark,
                     tooltip: hasBookmarkOnCurrentBlock
                         ? 'Remover marcador'
                         : 'Marcar esta posição',
@@ -916,11 +1001,7 @@ class _AsyncEpubImageState extends State<_AsyncEpubImage> {
     if (_missing || _bytes == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Image.memory(
-        _bytes!,
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-      ),
+      child: Image.memory(_bytes!, fit: BoxFit.contain, gaplessPlayback: true),
     );
   }
 }

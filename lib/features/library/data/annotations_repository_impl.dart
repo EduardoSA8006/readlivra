@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/result/app_exceptions.dart';
 import '../../../core/result/result.dart';
 import 'annotations_repository.dart';
-import 'models/bookmark.dart';
-import 'models/highlight.dart';
+import '../../../core/models/bookmark.dart';
+import '../../../core/models/highlight.dart';
 
 class SharedPrefsAnnotationsRepository implements AnnotationsRepository {
   SharedPrefsAnnotationsRepository(this._prefs);
